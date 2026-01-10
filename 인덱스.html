@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pulse Context Analyzer</title>
+    <link rel="stylesheet" href="스타일.css?v=1.1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+KR:wght@400;700&display=swap"
+        rel="stylesheet">
+    <!-- Web App Manifest for PWA -->
+    <link rel="manifest" href="설정.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="ambient-bg" id="ambient-overlay"></div>
+
+    <header>
+        <div class="pulse-container">
+            <div class="pulse-wave"></div>
+        </div>
+        <div class="header-main">
+            <h1 style="font-size: 1.2rem; font-weight: 700;">비밀 파트너: 맥락 분석기</h1>
+            <button id="settings-toggle" class="icon-btn">⚙️</button>
+        </div>
+
+        <!-- API Key Settings (Hidden by default) -->
+        <div id="settings-panel" class="settings-panel hidden">
+            <h3 style="font-size: 0.9rem; margin-bottom: 0.5rem;">🔑 AI 박사님 설정 (v3.0)</h3>
+            <p style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem;">키가 없으신가요? <a
+                    href="https://aistudio.google.com/app/apikey" target="_blank"
+                    style="color: #6366f1; text-decoration: underline;">여기에서 무료로 받기</a></p>
+            <input type="password" id="api-key-input" placeholder="Google AI Studio API 키를 입력하세요">
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button id="save-key-btn" class="save-btn" style="flex: 2;">저장</button>
+                <button onclick="checkAvailableModels(); event.stopPropagation();" class="save-btn"
+                    style="flex: 1; background: #475569; font-size: 0.7rem;">모델 점검</button>
+                <button onclick="forceAppReload(); event.stopPropagation();" class="save-btn"
+                    style="flex: 1; width: 100%; background: #1e293b; color: #94a3b8; font-size: 0.65rem; margin-top: 0.2rem;">강제
+                    업데이트 재설치</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Mood Card -->
+        <div class="dashboard-card" id="mood-card">
+            <div class="card-title">
+                <span class="icon">🌡️</span> 대화 온도
+            </div>
+            <div class="card-content" id="mood-status">대화 대기 중...</div>
+            <div class="tag-list" id="mood-tags">
+                <!-- Tags will be injected here -->
+            </div>
+        </div>
+
+        <!-- Intent Card -->
+        <div class="dashboard-card" id="intent-card">
+            <div class="card-title">
+                <span class="icon">🔍</span> 숨은 의도
+            </div>
+            <div class="card-content" id="intent-status">입력을 기다리고 있습니다.</div>
+        </div>
+
+        <!-- Next Step Card -->
+        <div class="dashboard-card" id="action-card">
+            <div class="card-title">
+                <span class="icon">⚡</span> 추천 대응
+            </div>
+            <div class="card-content" id="action-suggestion"
+                style="font-size: 1rem; font-weight: 400; color: var(--text-dim);">
+                상대방의 말을 분석하면 최적의 답변을 제안합니다.
+            </div>
+        </div>
+
+        <!-- Hidden Textarea for manual paste if voice fails -->
+        <textarea id="text-input" placeholder="여기에 대화 내용을 붙여넣거나 직접 말씀하세요..." rows="3"></textarea>
+    </main>
+
+    <div class="bottom-actions">
+        <div class="status-bar" id="app-status">감지 준비 완료</div>
+        <div class="action-bar">
+            <button id="analyze-btn" class="main-fab">
+                <span class="btn-icon">🎙️</span>
+                <span>분석 시작</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Post-Session Report Modal (v3.7 Total Cache Victory) -->
+    <div id="report-overlay" class="report-overlay hidden" style="z-index: 9999; display: none;">
+        <div class="report-modal">
+            <div class="report-header" style="justify-content: space-between; display: flex; align-items: center;">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem; font-size: 1rem; margin: 0;">📊 대화 분석 보고서
+                    <span
+                        style="font-size: 0.6rem; color: #111; background: #fbbf24; padding: 2px 5px; border-radius: 4px; margin-left: 5px; font-weight: bold;">v3.7
+                        GOLD</span>
+                </h3>
+                <button onclick="window.closeReport()"
+                    style="background:rgba(255,255,255,0.1); border:none; color:white; font-size:1.2rem; cursor:pointer; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; line-height: 1;">&times;</button>
+            </div>
+            <div id="report-body" class="report-body">
+                <div style="text-align:center; padding: 2rem;">
+                    <span class="pulse">🤖 분석 보고서를 작성 중입니다...</span>
+                </div>
+            </div>
+            <div class="report-footer">
+                <button onclick="window.closeReport()" class="btn-secondary">닫기</button>
+                <button id="copy-report-btn" onclick="window.copyReport()" class="btn-primary">보고서 복사</button>
+            </div>
+            <div
+                style="padding: 0.8rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 5px;">
+                <button onclick="window.forceAppReload()"
+                    style="background:none; border:none; color:#fbbf24; font-size:0.7rem; text-decoration:underline; cursor:pointer; font-weight:bold;">
+                    🔥 버전이 안 바뀌나요? [강제 수동 업데이트]
+                </button>
+                <button onclick="window.panicReset()"
+                    style="background:none; border:none; color:#ef4444; font-size:0.6rem; text-decoration:underline; cursor:pointer; opacity: 0.6;">
+                    🚨 앱이 완전히 먹통인가요? [전체 초기화 헬프]
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PWA Ultra Cache Destroyer (v3.7) -->
+    <script>
+        (function () {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                    for (let registration of registrations) { registration.unregister(); }
+                });
+            }
+            if ('caches' in window) {
+                caches.keys().then(function (names) {
+                    for (let name of names) caches.delete(name);
+                });
+            }
+        })();
+    </script>
+    <script src="앱.js?v=20260110_v37_GOLD_PATCH"></script>
+</body>
+
+</html>

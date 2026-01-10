@@ -1,0 +1,17 @@
+{
+  "name": "Secret Pocket Partner",
+  "short_name": "Pocket AI",
+  "description": "AI-powered conversation context analyzer for your pocket.",
+  "start_url": "인덱스.html",
+  "display": "standalone",
+  "background_color": "#0d0d12",
+  "theme_color": "#6e45e2",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3203/3203641.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
