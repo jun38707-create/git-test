@@ -149,9 +149,10 @@
     <!-- PWA Installer (v4.0) -->
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(() => console.log('Service Worker Registered'))
-                .catch(err => console.log('SW Fail:', err));
+            // Force update SW with version query
+            navigator.serviceWorker.register('sw.js?v=4.1')
+                .then((reg) => console.log('✅ Service Worker Registered:', reg))
+                .catch(err => console.error('❌ SW Failed:', err));
         }
     </script>
     <script src="app.js?v=20260110_v37_GOLD_PATCH"></script>
