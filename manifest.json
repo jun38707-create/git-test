@@ -2,7 +2,7 @@
   "name": "비밀 파트너: 맥락 분석기",
   "short_name": "맥락 분석기",
   "description": "주머니 속 비밀 파트너, 대화 맥락 분석 AI",
-  "start_url": "인덱스.html",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#0d0d12",
   "theme_color": "#6e45e2",
