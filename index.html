@@ -146,20 +146,13 @@
         </div>
     </div>
 
-    <!-- PWA Ultra Cache Destroyer (v3.7) -->
+    <!-- PWA Installer (v4.0) -->
     <script>
-        (function () {
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(function (registrations) {
-                    for (let registration of registrations) { registration.unregister(); }
-                });
-            }
-            if ('caches' in window) {
-                caches.keys().then(function (names) {
-                    for (let name of names) caches.delete(name);
-                });
-            }
-        })();
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('Service Worker Registered'))
+                .catch(err => console.log('SW Fail:', err));
+        }
     </script>
     <script src="app.js?v=20260110_v37_GOLD_PATCH"></script>
 </body>
