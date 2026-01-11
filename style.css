@@ -340,7 +340,7 @@ main {
     gap: 0.8rem;
     padding: 0.5rem;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,0.1) transparent;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
 .flow-container::-webkit-scrollbar {
@@ -348,7 +348,7 @@ main {
 }
 
 .flow-container::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
     border-radius: 10px;
 }
 
@@ -370,8 +370,15 @@ main {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .chat-bubble.me {
@@ -395,6 +402,36 @@ main {
     margin-bottom: 0.2rem;
     display: block;
     opacity: 0.8;
+}
+
+.chat-bubble.other.p1 {
+    background: rgba(52, 211, 153, 0.15);
+    border-color: rgba(52, 211, 153, 0.3);
+    color: #a7f3d0;
+}
+
+.chat-bubble.other.p2 {
+    background: rgba(251, 191, 36, 0.15);
+    border-color: rgba(251, 191, 36, 0.3);
+    color: #fde68a;
+}
+
+.chat-bubble.other.p3 {
+    background: rgba(248, 113, 113, 0.15);
+    border-color: rgba(248, 113, 113, 0.3);
+    color: #fecaca;
+}
+
+.chat-bubble.other.p4 {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: rgba(167, 139, 250, 0.3);
+    color: #ddd6fe;
+}
+
+.chat-bubble.other.p5 {
+    background: rgba(45, 212, 191, 0.15);
+    border-color: rgba(45, 212, 191, 0.3);
+    color: #99f6e4;
 }
 
 .pulse {

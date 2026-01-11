@@ -1,5 +1,5 @@
-// VERSION CONTROL: 3.8 (Speaker Separation Update)
-console.log("APP VERSION: 3.8 - Speaker Separation Active");
+// VERSION CONTROL: 3.9 (Multi-Speaker Dynamic Detection)
+console.log("APP VERSION: 3.9 - Multi-Speaker Active");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const reportBody = document.getElementById('report-body');
     const flowContainer = document.getElementById('flow-container');
 
-    if (appStatus) appStatus.textContent = "✅ 앱 버전 3.8 로드 완료 (화자 분리 패치)";
+    if (appStatus) appStatus.textContent = "✅ 앱 버전 3.9 로드 완료 (다중 화자 구분 패치)";
 
     let isAnalyzing = false;
     let recognition = null;
@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function addFlowBubble(speaker, summary) {
+    function addFlowBubble(speaker, summary, speakerId = 0) {
         if (!flowContainer) return;
 
         // Remove empty state message if exists
@@ -197,12 +197,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (emptyMsg) emptyMsg.remove();
 
         const bubble = document.createElement('div');
-        const isMe = speaker === 'me';
+        const isMe = speaker === 'me' || speaker === '나';
         bubble.className = `chat-bubble ${isMe ? 'me' : 'other'}`;
+
+        // Add specific color class for other speakers
+        if (!isMe && speakerId > 0) {
+            bubble.classList.add(`p${(speakerId % 5) || 5}`);
+        }
 
         const speakerLabel = document.createElement('span');
         speakerLabel.className = 'bubble-speaker';
-        speakerLabel.textContent = isMe ? '나' : '상대방';
+        speakerLabel.textContent = speaker === 'me' ? '나' : speaker;
 
         const content = document.createElement('div');
         content.textContent = summary;
@@ -231,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (conversationHistory.length > 50) conversationHistory.shift();
 
                 updateUI(response.mood, response.intent, response.suggestion);
-                addFlowBubble(response.speaker, response.summary || text);
+                addFlowBubble(response.speakerTag || response.speaker, response.summary || text, response.speakerId || 0);
             }
         } catch (error) {
             appStatus.textContent = "⚠️ 분석 오류 (전체 모델 실패)";
@@ -244,15 +249,18 @@ document.addEventListener('DOMContentLoaded', () => {
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`
         ];
         const prompt = `당신은 실시간 대화 분석가입니다. 아래 대화를 분석하여 반드시 '한국어'로만 답변하세요.
+        당신은 오디오 분석 없이 오직 '텍스트'만으로 여러 명의 대화를 구분해야 합니다.
         [최근 흐름]: ${context}
         [현재 문장]: "${text}"
-        상대방의 'mood', 'intent', 'suggestion', 'speaker', 'summary'를 JSON으로만 답변하세요.
+        상대방의 'mood', 'intent', 'suggestion', 'speaker', 'speakerTag', 'speakerId', 'summary'를 JSON으로만 답변하세요.
         - mood: 'positive', 'negative', 'neutral' 중 하나
         - intent: 상대방의 숨은 의도나 상태 (한국어 1문장)
         - suggestion: 내가 취할 수 있는 최선의 행동 (한국어 1문장)
-        - speaker: 이 문장을 말한 사람 ('me' 또는 'other'). 상황 맥락상 내가 말한 것 같으면 'me', 상대방이 말한 것 같으면 'other'로 구분하세요.
-        - summary: 이 문장의 핵심 내용을 아주 짧게 요약 (한국어 1문장, 대화창에 표시될 내용)
-        형식: {"mood": "...", "intent": "...", "suggestion": "...", "speaker": "...", "summary": "..."}`;
+        - speaker: 'me' (나) 또는 'other' (다른 모든 사람)
+        - speakerTag: 이 문장을 말한 사람의 호칭. 문맥상 나이면 '나', 다른 사람이면 '참가자 1', '참가자 2' 등으로 구분하세요. 만약 누군가 이름을 부른다면 그 이름을 사용해도 좋습니다.
+        - speakerId: 화자별 고유 번호 (나=0, 참가자1=1, 참가자2=2...). 새로운 화자가 등장하면 다음 번호를 부여하세요.
+        - summary: 이 문장의 핵심 내용을 아주 짧게 요약 (한국어 1문장)
+        형식: {"mood": "...", "intent": "...", "suggestion": "...", "speaker": "...", "speakerTag": "...", "speakerId": 0, "summary": "..."}`;
 
         for (const url of endpoints) {
             try {
