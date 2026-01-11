@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveKeyBtn = document.getElementById('save-key-btn');
     const reportOverlay = document.getElementById('report-overlay');
     const reportBody = document.getElementById('report-body');
+    const flowContainer = document.getElementById('flow-container');
 
     if (appStatus) appStatus.textContent = "✅ 앱 버전 3.7 로드 완료 (골드 패치)";
 
@@ -109,8 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             appStatus.innerHTML = `👂 <span style="color: #cffafe;">청취 중: ${transcript}</span>`;
             if (event.results[event.results.length - 1].isFinal) {
-                conversationHistory.push(transcript);
-                if (conversationHistory.length > 50) conversationHistory.shift();
+                // Hide raw transcript from status bar and only show a listening indicator
+                appStatus.innerHTML = "👂 <span style='color: #cffafe;'>경청 완료, 분석 중...</span>";
                 triggerAnalysis(transcript);
             }
         };
@@ -181,15 +182,57 @@ document.addEventListener('DOMContentLoaded', () => {
         intentStatus.textContent = intentText;
         actionSuggestion.textContent = suggestionText;
         ambientOverlay.style.background = `radial-gradient(circle at center, ${theme.color}, transparent 70%)`;
+
+        // Hide full transcript from status bar if it's not a generic recording pulse
+        if (themeKey !== 'recording') {
+            appStatus.innerHTML = "✅ 분석 완료";
+        }
+    }
+
+    function addFlowBubble(speaker, summary) {
+        if (!flowContainer) return;
+
+        // Remove empty state message if exists
+        const emptyMsg = flowContainer.querySelector('.empty-flow');
+        if (emptyMsg) emptyMsg.remove();
+
+        const bubble = document.createElement('div');
+        const isMe = speaker === 'me';
+        bubble.className = `chat-bubble ${isMe ? 'me' : 'other'}`;
+
+        const speakerLabel = document.createElement('span');
+        speakerLabel.className = 'bubble-speaker';
+        speakerLabel.textContent = isMe ? '나' : '상대방';
+
+        const content = document.createElement('div');
+        content.textContent = summary;
+
+        bubble.appendChild(speakerLabel);
+        bubble.appendChild(content);
+        flowContainer.appendChild(bubble);
+
+        // Scroll to bottom
+        flowContainer.scrollTop = flowContainer.scrollHeight;
     }
 
     async function triggerAnalysis(text) {
         if (!text.trim() || !GEMINI_API_KEY) return;
         try {
             appStatus.innerHTML = "🤖 <span class='pulse'>박사님이 집중 분석 중...</span>";
-            const context = conversationHistory.slice(-5).join(' | ');
+            const context = conversationHistory.slice(-5).map(h => `${h.speaker}: ${h.text}`).join(' | ');
             const response = await callGemini(text, context);
-            if (response) updateUI(response.mood, response.intent, response.suggestion);
+            if (response) {
+                // Save to history with speaker info
+                conversationHistory.push({
+                    speaker: response.speaker || 'other',
+                    text: text,
+                    summary: response.summary || text
+                });
+                if (conversationHistory.length > 50) conversationHistory.shift();
+
+                updateUI(response.mood, response.intent, response.suggestion);
+                addFlowBubble(response.speaker, response.summary || text);
+            }
         } catch (error) {
             appStatus.textContent = "⚠️ 분석 오류 (전체 모델 실패)";
         }
@@ -203,11 +246,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const prompt = `당신은 실시간 대화 분석가입니다. 아래 대화를 분석하여 반드시 '한국어'로만 답변하세요.
         [최근 흐름]: ${context}
         [현재 문장]: "${text}"
-        상대방의 'mood', 'intent', 'suggestion'을 JSON으로만 답변하세요.
+        상대방의 'mood', 'intent', 'suggestion', 'speaker', 'summary'를 JSON으로만 답변하세요.
         - mood: 'positive', 'negative', 'neutral' 중 하나
         - intent: 상대방의 숨은 의도나 상태 (한국어 1문장)
         - suggestion: 내가 취할 수 있는 최선의 행동 (한국어 1문장)
-        형식: {"mood": "...", "intent": "...", "suggestion": "..."}`;
+        - speaker: 이 문장을 말한 사람 ('me' 또는 'other'). 상황 맥락상 내가 말한 것 같으면 'me', 상대방이 말한 것 같으면 'other'로 구분하세요.
+        - summary: 이 문장의 핵심 내용을 아주 짧게 요약 (한국어 1문장, 대화창에 표시될 내용)
+        형식: {"mood": "...", "intent": "...", "suggestion": "...", "speaker": "...", "summary": "..."}`;
 
         for (const url of endpoints) {
             try {
@@ -236,14 +281,14 @@ document.addEventListener('DOMContentLoaded', () => {
             copyBtn.style.opacity = '0.5';
             copyBtn.textContent = '작성 중...';
         }
-        const fullHistory = conversationHistory.join('\n');
+        const fullHistory = conversationHistory.map(h => `[${h.speaker === 'me' ? '나' : '상대방'}] ${h.text}`).join('\n');
         const prompt = `당신은 대화 분석 전문가입니다. 아래 대화 내용을 바탕으로 '종합 분석 보고서'를 반드시 '한국어'로만 작성해 주세요.
         제발 마크다운 블록(\`\`\`html)을 넣지 말고 생 HTML 태그만 출력하세요.
         - <h2> 태그로 제목 구분
         - <ul>, <li>로 핵심 내용 정리
         - 🎯 이모지 적절히 사용
         [보고서 구성]:
-        1. 전체적인 대화 분위기 요약
+        1. 전체적인 대화 분위기 요약 (화자 간의 상호작용 중심)
         2. 놓치지 말아야 할 결정적 시그널
         3. 나를 위한 실전 대화 솔루션 및 피드백
         대화 내용:\n${fullHistory}`;
