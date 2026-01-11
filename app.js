@@ -1,5 +1,5 @@
-// VERSION CONTROL: 3.7 (Total Cache Victory)
-console.log("APP VERSION: 3.7 - Gold Update Active");
+// VERSION CONTROL: 3.8 (Speaker Separation Update)
+console.log("APP VERSION: 3.8 - Speaker Separation Active");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const reportBody = document.getElementById('report-body');
     const flowContainer = document.getElementById('flow-container');
 
-    if (appStatus) appStatus.textContent = "✅ 앱 버전 3.7 로드 완료 (골드 패치)";
+    if (appStatus) appStatus.textContent = "✅ 앱 버전 3.8 로드 완료 (화자 분리 패치)";
 
     let isAnalyzing = false;
     let recognition = null;
