@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let GEMINI_API_KEY = localStorage.getItem('GEMINI_API_KEY') || '';
     let wakeLock = null;
     let conversationHistory = [];
+    let lastTopic = ""; // Track the last topic
 
     if (GEMINI_API_KEY && apiKeyInput) {
         apiKeyInput.value = GEMINI_API_KEY;
@@ -207,7 +208,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const speakerLabel = document.createElement('span');
         speakerLabel.className = 'bubble-speaker';
-        speakerLabel.textContent = speaker === 'me' ? '나' : speaker;
+        // 한글 패치: me/other가 그대로 출력되지 않도록 변환
+        let displayName = speaker;
+        if (speaker === 'me') displayName = '나';
+        else if (speaker === 'other') displayName = '상대방';
+        
+        speakerLabel.textContent = displayName;
 
         const content = document.createElement('div');
         content.textContent = summary;
@@ -220,6 +226,17 @@ document.addEventListener('DOMContentLoaded', () => {
         flowContainer.scrollTop = flowContainer.scrollHeight;
     }
 
+    function addTopicDivider(topicText) {
+        if (!flowContainer) return;
+
+        const divider = document.createElement('div');
+        divider.className = 'topic-divider';
+        divider.innerHTML = `<span>📌 주제 변경: ${topicText}</span>`;
+        
+        flowContainer.appendChild(divider);
+        flowContainer.scrollTop = flowContainer.scrollHeight;
+    }
+
     async function triggerAnalysis(text) {
         if (!text.trim() || !GEMINI_API_KEY) return;
         try {
@@ -227,6 +244,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const context = conversationHistory.slice(-5).map(h => `${h.speaker}: ${h.text}`).join(' | ');
             const response = await callGemini(text, context);
             if (response) {
+                // Topic Change Detection
+                if (response.currentTopic && lastTopic && response.currentTopic !== lastTopic) {
+                     addTopicDivider(response.currentTopic);
+                }
+                if (response.currentTopic) {
+                    lastTopic = response.currentTopic;
+                }
+
                 // Save to history with speaker info
                 conversationHistory.push({
                     speaker: response.speaker || 'other',
@@ -236,7 +261,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (conversationHistory.length > 50) conversationHistory.shift();
 
                 updateUI(response.mood, response.intent, response.suggestion);
-                addFlowBubble(response.speakerTag || response.speaker, response.summary || text, response.speakerId || 0);
+                // Modified: Show actual text instead of summary
+                addFlowBubble(response.speakerTag || response.speaker, text, response.speakerId || 0);
             }
         } catch (error) {
             appStatus.textContent = "⚠️ 분석 오류 (전체 모델 실패)";
@@ -252,7 +278,8 @@ document.addEventListener('DOMContentLoaded', () => {
         당신은 오디오 분석 없이 오직 '텍스트'만으로 여러 명의 대화를 구분해야 합니다.
         [최근 흐름]: ${context}
         [현재 문장]: "${text}"
-        상대방의 'mood', 'intent', 'suggestion', 'speaker', 'speakerTag', 'speakerId', 'summary'를 JSON으로만 답변하세요.
+        [현재 문장]: "${text}"
+        상대방의 'mood', 'intent', 'suggestion', 'speaker', 'speakerTag', 'speakerId', 'summary', 'currentTopic'을 JSON으로만 답변하세요.
         - mood: 'positive', 'negative', 'neutral' 중 하나
         - intent: 상대방의 숨은 의도나 상태 (한국어 1문장)
         - suggestion: 내가 취할 수 있는 최선의 행동 (한국어 1문장)
@@ -260,7 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
         - speakerTag: 이 문장을 말한 사람의 호칭. 문맥상 나이면 '나', 다른 사람이면 '참가자 1', '참가자 2' 등으로 구분하세요. 만약 누군가 이름을 부른다면 그 이름을 사용해도 좋습니다.
         - speakerId: 화자별 고유 번호 (나=0, 참가자1=1, 참가자2=2...). 새로운 화자가 등장하면 다음 번호를 부여하세요.
         - summary: 이 문장의 핵심 내용을 아주 짧게 요약 (한국어 1문장)
-        형식: {"mood": "...", "intent": "...", "suggestion": "...", "speaker": "...", "speakerTag": "...", "speakerId": 0, "summary": "..."}`;
+        - currentTopic: 현재 대화의 핵심 주제 (예: '점심 메뉴 결정', '날씨 이야기'). 이전과 주제가 같으면 동일하게, 확실히 바뀌었으면 새로운 주제를 적으세요.
+        형식: {"mood": "...", "intent": "...", "suggestion": "...", "speaker": "...", "speakerTag": "...", "speakerId": 0, "summary": "...", "currentTopic": "..."}`;
 
         for (const url of endpoints) {
             try {
