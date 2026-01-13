@@ -1,5 +1,5 @@
-// VERSION CONTROL: 3.9 (Multi-Speaker Dynamic Detection)
-console.log("APP VERSION: 3.9 - Multi-Speaker Active");
+// VERSION CONTROL: 4.1 (Real-time Feedback & Mobile Fix)
+console.log("APP VERSION: 4.1 - Real-time + Mobile Support");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const reportBody = document.getElementById('report-body');
     const flowContainer = document.getElementById('flow-container');
 
-    if (appStatus) appStatus.textContent = "✅ 앱 버전 3.9 로드 완료 (다중 화자 구분 패치)";
+    if (appStatus) appStatus.textContent = "✅ 앱 버전 4.1 로드 완료 (실시간 피드백 + 모바일 패치)";
 
     let isAnalyzing = false;
     let recognition = null;
