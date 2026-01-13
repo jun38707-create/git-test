@@ -1,5 +1,5 @@
-// VERSION CONTROL: 4.1 (Real-time Feedback & Mobile Fix)
-console.log("APP VERSION: 4.1 - Real-time + Mobile Support");
+// VERSION CONTROL: 4.2 (Interim Results "Ghost Bubble")
+console.log("APP VERSION: 4.2 - Real-time Interim Typing");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const reportBody = document.getElementById('report-body');
     const flowContainer = document.getElementById('flow-container');
 
-    if (appStatus) appStatus.textContent = "✅ 앱 버전 4.1 로드 완료 (실시간 피드백 + 모바일 패치)";
+    if (appStatus) appStatus.textContent = "✅ 앱 버전 4.2 로드 완료 (실시간 받아쓰기 기능)";
 
     let isAnalyzing = false;
     let recognition = null;
@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let wakeLock = null;
     let conversationHistory = [];
     let lastTopic = ""; // Track the last topic
+    let ghostBubble = null; // For interim results
 
     if (GEMINI_API_KEY && apiKeyInput) {
         apiKeyInput.value = GEMINI_API_KEY;
@@ -105,15 +106,40 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         recognition.onresult = (event) => {
-            let transcript = '';
+            let interimTranscript = '';
+            let finalTranscript = '';
+
             for (let i = event.resultIndex; i < event.results.length; ++i) {
-                transcript += event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
             }
-            appStatus.innerHTML = `👂 <span style="color: #cffafe;">청취 중: ${transcript}</span>`;
-            if (event.results[event.results.length - 1].isFinal) {
-                // Hide raw transcript from status bar and only show a listening indicator
+
+            // Handle Interim Results (Ghost Bubble)
+            if (interimTranscript) {
+                if (!ghostBubble) {
+                    ghostBubble = addFlowBubble('me', interimTranscript, 0);
+                    ghostBubble.classList.add('ghost');
+                    const speakerLabel = ghostBubble.querySelector('.bubble-speaker');
+                    if (speakerLabel) speakerLabel.textContent = "듣는 중...";
+                } else {
+                    const contentDiv = ghostBubble.querySelector('div:not(.bubble-speaker)');
+                    if (contentDiv) contentDiv.textContent = interimTranscript;
+                    // Auto scroll
+                    if (flowContainer) flowContainer.scrollTop = flowContainer.scrollHeight;
+                }
+            }
+
+            // Handle Final Results
+            if (finalTranscript) {
+                if (ghostBubble) {
+                    ghostBubble.remove();
+                    ghostBubble = null;
+                }
                 appStatus.innerHTML = "👂 <span style='color: #cffafe;'>경청 완료, 분석 중...</span>";
-                triggerAnalysis(transcript);
+                triggerAnalysis(finalTranscript);
             }
         };
 

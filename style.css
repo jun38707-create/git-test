@@ -444,6 +444,13 @@ main {
     animation: pulse 1.5s infinite;
 }
 
+.chat-bubble.ghost {
+    opacity: 0.5;
+    font-style: italic;
+    color: var(--text-dim);
+    border: 1px dotted rgba(255, 255, 255, 0.1);
+}
+
 .pulse {
     animation: pulse 2s infinite;
 }
