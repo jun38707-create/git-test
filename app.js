@@ -238,7 +238,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function triggerAnalysis(text) {
-        if (!text.trim() || !GEMINI_API_KEY) return;
+        if (!text.trim()) return;
+
+        if (!GEMINI_API_KEY) {
+            alert("⚠️ API 키가 설정되지 않았습니다.\n설정 창에서 Google AI Studio 키를 입력해 주세요.");
+            if (settingsPanel) settingsPanel.classList.remove('hidden');
+            if (apiKeyInput) apiKeyInput.focus();
+            appStatus.innerHTML = "⚠️ <span style='color:#f87171'>API 키가 필요합니다.</span>";
+            isAnalyzing = false;
+            analyzeBtn.innerHTML = '<span class="btn-icon">🎙️</span> <span>분석 시작</span>';
+            analyzeBtn.style.background = '';
+            return;
+        }
         try {
             appStatus.innerHTML = "🤖 <span class='pulse'>박사님이 집중 분석 중...</span>";
             const context = conversationHistory.slice(-5).map(h => `${h.speaker}: ${h.text}`).join(' | ');
