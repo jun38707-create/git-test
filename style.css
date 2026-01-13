@@ -438,6 +438,12 @@ main {
     color: #99f6e4;
 }
 
+.chat-bubble.pending {
+    opacity: 0.6;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    animation: pulse 1.5s infinite;
+}
+
 .pulse {
     animation: pulse 2s infinite;
 }

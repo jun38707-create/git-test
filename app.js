@@ -234,6 +234,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Scroll to bottom
         flowContainer.scrollTop = flowContainer.scrollHeight;
+
+        return bubble; // Return element for updates
     }
 
     function addTopicDivider(topicText) {
@@ -260,10 +262,20 @@ document.addEventListener('DOMContentLoaded', () => {
             analyzeBtn.style.background = '';
             return;
         }
+        // 1. Immediate UI Feedback (Optimistic UI)
+        // Show the bubble IMMEDIATELY as "Analyzing..."
+        const pendingBubble = addFlowBubble('analzying', text, 0);
+        if (pendingBubble) {
+            pendingBubble.classList.add('pending');
+            const speakerLabel = pendingBubble.querySelector('.bubble-speaker');
+            if (speakerLabel) speakerLabel.textContent = "⏳ 분석 중...";
+        }
+
         try {
             appStatus.innerHTML = "🤖 <span class='pulse'>박사님이 집중 분석 중...</span>";
             const context = conversationHistory.slice(-5).map(h => `${h.speaker}: ${h.text}`).join(' | ');
             const response = await callGemini(text, context);
+            
             if (response) {
                 // Topic Change Detection
                 if (response.currentTopic && lastTopic && response.currentTopic !== lastTopic) {
@@ -282,11 +294,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (conversationHistory.length > 50) conversationHistory.shift();
 
                 updateUI(response.mood, response.intent, response.suggestion);
-                // Modified: Show actual text instead of summary
-                addFlowBubble(response.speakerTag || response.speaker, text, response.speakerId || 0);
+                
+                // 2. Update the pending bubble with real results
+                if (pendingBubble) {
+                    pendingBubble.classList.remove('pending');
+                    
+                    // Reset classes
+                    pendingBubble.className = `chat-bubble ${response.speaker === 'me' ? 'me' : 'other'}`;
+                    if (response.speaker !== 'me' && response.speakerId > 0) {
+                        pendingBubble.classList.add(`p${(response.speakerId % 5) || 5}`);
+                    }
+
+                    // Update label
+                    const speakerLabel = pendingBubble.querySelector('.bubble-speaker');
+                    if (speakerLabel) {
+                        speakerLabel.textContent = response.speakerTag || (response.speaker === 'me' ? '나' : '상대방');
+                    }
+                } else {
+                    // If somehow bubble was lost, add new one
+                    addFlowBubble(response.speakerTag || response.speaker, text, response.speakerId || 0);
+                }
+            } else {
+                throw new Error("No response from Gemini");
             }
         } catch (error) {
-            appStatus.textContent = "⚠️ 분석 오류 (전체 모델 실패)";
+            console.error(error);
+            appStatus.textContent = "⚠️ 분석 지연 (텍스트 저장됨)";
+            
+            // Fallback: Make it look like a generic message
+            if (pendingBubble) {
+                pendingBubble.classList.remove('pending');
+                pendingBubble.className = 'chat-bubble other'; // Default to other
+                const speakerLabel = pendingBubble.querySelector('.bubble-speaker');
+                if (speakerLabel) speakerLabel.textContent = "상대방 (분석 실패)";
+            }
         }
     }
 
