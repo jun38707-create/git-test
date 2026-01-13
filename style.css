@@ -44,8 +44,12 @@ header {
     text-align: center;
 }
 
+/* FIX: Ensure header-main is visible for settings button */
 .header-main {
-    display: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
 }
 
 .icon-btn {
@@ -376,8 +380,8 @@ main {
     }
 
     to {
-        opacity: 1;
         transform: translateY(0);
+        opacity: 1;
     }
 }
 
