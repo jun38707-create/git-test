@@ -147,13 +147,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (analyzeBtn) {
         analyzeBtn.addEventListener('click', () => {
+            if (!recognition) {
+                alert("🚫 이 브라우저는 음성 인식을 지원하지 않습니다.\n(iPhone은 Safari, Android는 Chrome을 사용해 주세요.)");
+                return;
+            }
             if (isAnalyzing) {
                 stopAnalysis();
             } else {
                 isAnalyzing = true;
                 conversationHistory = [];
-                try { if (recognition) recognition.start(); } catch (e) { }
-                updateUI('recording', '경청 중...', '맥락 분석을 시작합니다.');
+                try { 
+                    recognition.start(); 
+                    updateUI('recording', '경청 중...', '맥락 분석을 시작합니다.');
+                } catch (e) { 
+                    console.error(e);
+                    alert("⚠️ 마이크 실행 실패: 권한을 확인해주세요.");
+                    isAnalyzing = false;
+                }
             }
         });
     }
