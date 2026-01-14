@@ -1,5 +1,5 @@
-// VERSION CONTROL: 8.4 (Decoupled Stop Logic)
-console.log("APP VERSION: 8.4 - Instant Stop & Save");
+// VERSION CONTROL: 8.5 (Critical Save Logic Fix)
+console.log("APP VERSION: 8.5 - Restored Save Handler");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pocketBtn = document.getElementById('pocket-btn');
     const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v8.4 즉시 저장 모드)";
+    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v8.5 저장 오류 수정)";
 
     let isAnalyzing = false;
     let recognition = null;
@@ -562,17 +562,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 2. Stop Audio Recording & Save
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
-            // Note: mediaRecorder.onstop will handle the download logic
             
-            // Force stop streams immediately (Fixes "Mic Notification" stuck issue)
-            if (mediaRecorder.stream) {
-                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            }
+            // Define cleanup logic to run AFTER recorder handles data
+            mediaRecorder.onstop = (e) => {
+                console.log("Recorder stopped. Processing data...");
+                const mimeType = mediaRecorder.mimeTypeString || 'audio/webm';
+                const ext = mediaRecorder.extensionString || 'webm';
+                const audioBlob = new Blob(audioChunks, { type: mimeType });
+                
+                console.log(`Blob created: size=${audioBlob.size}, type=${mimeType}`);
+
+                if (audioBlob.size > 0) {
+                    createAudioDownloadLink(audioBlob, ext);
+                } else {
+                    console.warn("Audio recording empty.");
+                    alert("⚠️ 녹음된 데이터가 없습니다. 마이크 권한을 확인해주세요.");
+                }
+
+                // NOW stop the streams (Safe)
+                if (mediaRecorder.stream) {
+                    mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                }
+                mediaRecorder = null;
+            };
+
+            mediaRecorder.stop();
+            
         } else {
             console.log("MediaRecorder was not active.");
+            if (mediaRecorder && mediaRecorder.stream) {
+                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
         }
-        mediaRecorder = null;
     }
 
     if (analyzeBtn) {
