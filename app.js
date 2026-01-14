@@ -552,7 +552,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (e) { }
         }
-        reportBody.innerHTML = `<div style="text-align:center; padding: 1rem;"><p>⚠️ 오류 발생</p><button onclick="window.location.reload()">새로고침</button></div>`;
+        }
+        // If all failing, show specific error
+        console.error("Report Generation Failed");
+        reportBody.innerHTML = `<div style="text-align:center; padding: 1rem;">
+            <p>⚠️ 보고서 작성 실패</p>
+            <p style="font-size: 0.8rem; color: #aaa;">인터넷 연결을 확인하거나 잠시 후 다시 시도해주세요.</p>
+            <button onclick="window.location.reload()" style="margin-top:10px; padding: 5px 10px;">새로고침</button>
+        </div>`;
     }
 
     async function fetchWithTimeout(resource, options = {}) {
