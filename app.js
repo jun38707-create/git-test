@@ -1,5 +1,5 @@
-// VERSION CONTROL: 5.2 (High Sensitivity Tune)
-console.log("APP VERSION: 5.2 - Sensitivity Boost");
+// VERSION CONTROL: 5.3 (Duplicate Fix & Clean Fallback)
+console.log("APP VERSION: 5.3 - Stability Patch");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,10 +60,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const pocketBtn = document.getElementById('pocket-btn');
     const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 앱 버전 5.2 로드 완료 (고감도 모드)";
+    if (appStatus) appStatus.textContent = "✅ 앱 버전 5.3 로드 완료 (안정화 패치)";
 
     let isAnalyzing = false;
     let recognition = null;
+    
+    // De-duplication variables
+    let lastProcessedText = "";
+    let lastProcessedTime = 0;
+
     let GEMINI_API_KEY = localStorage.getItem('GEMINI_API_KEY') || '';
     let wakeLock = null;
     let conversationHistory = [];
@@ -330,6 +335,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function triggerAnalysis(text) {
         if (!text.trim()) return;
+        
+        // --- De-duplication Logic ---
+        const now = Date.now();
+        if (text === lastProcessedText && (now - lastProcessedTime < 2000)) {
+            console.log("Duplicate skipped:", text);
+            return;
+        }
+        lastProcessedText = text;
+        lastProcessedTime = now;
 
         if (!GEMINI_API_KEY) {
             alert("⚠️ API 키가 설정되지 않았습니다.\n설정 창에서 Google AI Studio 키를 입력해 주세요.");
@@ -341,55 +355,25 @@ document.addEventListener('DOMContentLoaded', () => {
             analyzeBtn.style.background = '';
             return;
         }
-        // 1. Immediate UI Feedback (Optimistic UI)
-        // Show the bubble IMMEDIATELY as "Analyzing..."
-        const pendingBubble = addFlowBubble('analzying', text, 0);
-        if (pendingBubble) {
-            pendingBubble.classList.add('pending');
-            const speakerLabel = pendingBubble.querySelector('.bubble-speaker');
-            if (speakerLabel) speakerLabel.textContent = "⏳ 분석 중...";
-        }
+
+        // Initialize with default/fallback response
+        let response = {
+            speaker: 'other',
+            speakerTag: '상대방',
+            isTopicChanged: false,
+            currentTopic: null
+        };
+        
+        let pendingBubble = null;
 
         try {
-            appStatus.innerHTML = "🤖 <span class='pulse'>박사님이 집중 분석 중...</span>";
-            const context = conversationHistory.slice(-5).map(h => `${h.speakerTag}: ${h.text}`).join(' | ');
-            const response = await callGemini(text, context);
+            appStatus.innerHTML = "🤖 <span class='pulse'>기록 중...</span>";
             
-            if (response) {
-                // Topic Change Detection
-                if (response.isTopicChanged && response.currentTopic) {
-                     addTopicDivider(response.currentTopic);
-                }
-                if (response.currentTopic) {
-                    lastTopic = response.currentTopic;
-                }
-
-                // Save to history with speaker info
-                conversationHistory.push({
-                    speaker: response.speaker || 'other',
-                    speakerTag: response.speakerTag || (response.speaker === 'me' ? '나' : '상대방'),
-                    text: text,
-                    summary: text // No summary needed in v5.0
-                });
-                if (conversationHistory.length > 100) conversationHistory.shift(); // Increased history size
-                
-                // 2. Update the pending bubble with real results
-                if (pendingBubble) {
-                    pendingBubble.classList.remove('pending');
-                    
-                    // Reset classes
-                    pendingBubble.className = `chat-bubble ${response.speaker === 'me' ? 'me' : 'other'}`;
-                    if (response.speaker !== 'me' && response.speakerId > 0) {
-                        pendingBubble.classList.add(`p${(response.speakerId % 5) || 5}`);
-                    }
-
-                    // Update label
-                    const speakerLabel = pendingBubble.querySelector('.bubble-speaker');
-                    if (speakerLabel) {
-                        speakerLabel.textContent = response.speakerTag || (response.speaker === 'me' ? '나' : '상대방');
-                    }
-                } else {
-                    // If somehow bubble was lost, add new one
+            // Create pending bubble immediately with default info
+            // This ensures user sees the text even if API fails later
+            pendingBubble = addFlowBubble('other', text, 0); 
+            
+            const context = conversationHistory.slice(-5).map(h => `${h.speakerTag}: ${h.text}`).join(' | ');
                     addFlowBubble(response.speakerTag || response.speaker, text, response.speakerId || 0);
                 }
             } else {
