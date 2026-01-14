@@ -526,7 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (e) { }
         }
-        }
+
         // If all failing, show specific error
         console.error("Report Generation Failed");
         reportBody.innerHTML = `<div style="text-align:center; padding: 1rem;">
