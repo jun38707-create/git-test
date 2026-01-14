@@ -38,6 +38,11 @@
 
 <body>
     <div class="ambient-bg" id="ambient-overlay"></div>
+    <!-- Stealth Overlay for Pocket Mode -->
+    <div id="pocket-overlay" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column; color: #333;">
+        <h1 style="font-size: 3rem;">🕶️</h1>
+        <p style="margin-top: 1rem; font-size: 0.8rem;">화면을 두 번 터치하면 깨어납니다.</p>
+    </div>
 
     <header>
         <div class="pulse-container">
@@ -169,7 +174,7 @@
                 .catch(err => console.error('❌ SW Failed:', err));
         }
     </script>
-    <script src="app.js?v=5.0_SIMPLE_LOGGER"></script>
+    <script src="app.js?v=5.1_STEALTH_MODE"></script>
 </body>
 
 </html>

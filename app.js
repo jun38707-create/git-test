@@ -1,5 +1,5 @@
-// VERSION CONTROL: 5.0 (Simple Logger & Save)
-console.log("APP VERSION: 5.0 - Simple Context Logger");
+// VERSION CONTROL: 5.1 (Pocket Mode & Vibration)
+console.log("APP VERSION: 5.1 - Stealth & Haptic Feedback");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -56,9 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const reportOverlay = document.getElementById('report-overlay');
     const reportBody = document.getElementById('report-body');
     const flowContainer = document.getElementById('flow-container');
-    const saveBtn = document.getElementById('save-btn'); // New Save Button
+    const saveBtn = document.getElementById('save-btn');
+    const pocketBtn = document.getElementById('pocket-btn'); // New Stealth Button
+    const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 앱 버전 5.0 로드 완료 (간편 기록 모드)";
+    if (appStatus) appStatus.textContent = "✅ 앱 버전 5.1 로드 완료 (주머니 모드 + 진동)";
 
     let isAnalyzing = false;
     let recognition = null;
@@ -88,19 +90,76 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Speech Recognition ---
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
+    // --- Pocket Mode Logic ---
+    if (pocketBtn && pocketOverlay) {
+        pocketBtn.addEventListener('click', () => {
+            pocketOverlay.style.display = 'flex';
+            // Try to acquire wake lock
+            if ('wakeLock' in navigator) {
+                navigator.wakeLock.request('screen').then(lock => {
+                    wakeLock = lock;
+                }).catch(e => console.error(e));
+            }
+        });
+
+        // Double tap to exit
+        let lastTap = 0;
+        pocketOverlay.addEventListener('click', (e) => {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 500 && tapLength > 0) {
+                pocketOverlay.style.display = 'none';
+                e.preventDefault();
+            }
+            lastTap = currentTime;
+        });
+    }
+
+    // --- Speech Recognition Setup ---
+    if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'ko-KR';
 
         recognition.onstart = () => {
-            appStatus.innerHTML = "🎙️ <span class='pulse'>실시간 분석 중... 말씀해 주세요.</span>";
+            isAnalyzing = true;
+            analyzeBtn.classList.add('recording');
             analyzeBtn.innerHTML = '<span class="btn-icon">🛑</span> <span>분석 중지</span>';
             analyzeBtn.style.background = 'linear-gradient(135deg, #ef4444, #991b1b)';
             requestWakeLock();
+            
+            // Show Pocket Button
+            if (pocketBtn) {
+                pocketBtn.style.display = 'flex';
+            }
+
+            // Haptic Feedback: Start
+            if (navigator.vibrate) navigator.vibrate(200); 
+        };
+
+        recognition.onend = () => {
+            // Only vibrate if stopped unexpectedly (not by button)
+            if (isAnalyzing) {
+                if (navigator.vibrate) navigator.vibrate(500); // Error buzz
+                console.log('Restarting recognition...');
+                recognition.start();
+            } else {
+                analyzeBtn.classList.remove('recording');
+                analyzeBtn.innerHTML = '<span class="btn-icon">🎙️</span> <span>분석 시작</span>';
+                analyzeBtn.style.background = '';
+                appStatus.innerHTML = "✅ 분석 종료";
+                ambientOverlay.style.background = '';
+                
+                // Hide Pocket Button
+                if (pocketBtn) {
+                    pocketBtn.style.display = 'none';
+                    if (pocketOverlay) pocketOverlay.style.display = 'none';
+                }
+                
+                // Haptic Feedback: End
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
+            }
         };
 
         recognition.onresult = (event) => {
@@ -117,6 +176,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Handle Interim Results (Ghost Bubble)
             if (interimTranscript) {
+                // Subtle Haptic Feedback for "I hear you"
+                if (navigator.vibrate && interimTranscript.length % 5 === 0) {
+                     // Vibrate every few chars to avoid buzzing too much
+                     navigator.vibrate(15); 
+                }
+
                 if (!ghostBubble) {
                     ghostBubble = addFlowBubble('me', interimTranscript, 0);
                     ghostBubble.classList.add('ghost');
@@ -136,6 +201,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     ghostBubble.remove();
                     ghostBubble = null;
                 }
+                
+                // Haptic Feedback: Sentence Complete
+                if (navigator.vibrate) navigator.vibrate([50, 50]);
+
                 appStatus.innerHTML = "👂 <span style='color: #cffafe;'>경청 완료, 분석 중...</span>";
                 triggerAnalysis(finalTranscript);
             }
