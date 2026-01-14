@@ -1,5 +1,5 @@
-// VERSION CONTROL: 6.0 (Neutral Logger Reset)
-console.log("APP VERSION: 6.0 - Neutral Input & Topic Detection");
+// VERSION CONTROL: 7.0 (Context Tracker & Audio Switch)
+console.log("APP VERSION: 7.0 - Hidden Text & Audio Recorder");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pocketBtn = document.getElementById('pocket-btn');
     const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v6.0 통합 로그)";
+    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v7.0 맥락 트래커)";
 
     let isAnalyzing = false;
     let recognition = null;
@@ -120,98 +120,98 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Speech Recognition Setup ---
+    // --- Speech Recognition & Audio Recording Setup ---
+    let mediaRecorder = null;
+    let audioChunks = [];
+
     if ('webkitSpeechRecognition' in window) {
         recognition = new webkitSpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'ko-KR';
 
-        recognition.onstart = () => {
+        recognition.onstart = async () => {
             isAnalyzing = true;
             analyzeBtn.classList.add('recording');
             analyzeBtn.innerHTML = '<span class="btn-icon">🛑</span> <span>분석 중지</span>';
             
-            // Visual indicator of recording
-            ambientOverlay.style.background = `radial-gradient(circle at center, rgba(239, 68, 68, 0.2), transparent 70%)`;
+            // Visual indicator
+            ambientOverlay.style.background = `radial-gradient(circle at center, rgba(16, 185, 129, 0.2), transparent 70%)`; // Green tint for context mode
+            analyzeBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
             
-            analyzeBtn.style.background = 'linear-gradient(135deg, #ef4444, #991b1b)';
-            requestWakeLock();
-            
-            // Show Pocket Button
-            if (pocketBtn) {
-                pocketBtn.style.display = 'flex';
+            appStatus.innerHTML = "🎧 <span class='pulse'>맥락 추적 & 녹음 중...</span>";
+
+            // Start Audio Recording
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.start();
+                console.log("Audio recording started.");
+            } catch (err) {
+                console.error("Microphone access error for recording:", err);
+                alert("⚠️ 오디오 녹음을 시작할 수 없지만, 맥락 분석은 계속됩니다.");
             }
 
-            // Haptic Feedback: Start
+            requestWakeLock();
+            if (pocketBtn) pocketBtn.style.display = 'flex';
             if (navigator.vibrate) navigator.vibrate(200); 
         };
 
         recognition.onend = () => {
-            // Only vibrate if stopped unexpectedly (not by button)
             if (isAnalyzing) {
-                if (navigator.vibrate) navigator.vibrate(500); // Error buzz
+                if (navigator.vibrate) navigator.vibrate(500);
                 console.log('Restarting recognition...');
                 recognition.start();
             } else {
+                // STOPPED INTENTIONALLY
                 analyzeBtn.classList.remove('recording');
-                analyzeBtn.innerHTML = '<span class="btn-icon">🎙️</span> <span>분석 시작</span>';
+                analyzeBtn.innerHTML = '<span class="btn-icon">🎙️</span> <span>추적 시작</span>';
                 analyzeBtn.style.background = '';
-                appStatus.innerHTML = "✅ 분석 종료";
+                appStatus.innerHTML = "✅ 추적 종료";
                 ambientOverlay.style.background = '';
                 
-                // Hide Pocket Button
                 if (pocketBtn) {
                     pocketBtn.style.display = 'none';
                     if (pocketOverlay) pocketOverlay.style.display = 'none';
                 }
                 
-                // Haptic Feedback: End
                 if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
+
+                // Stop Audio Recording
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        createAudioDownloadLink(audioBlob);
+                    };
+                    // Stop all tracks to release mic
+                    mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                }
             }
         };
 
         recognition.onresult = (event) => {
-            let interimTranscript = '';
             let finalTranscript = '';
 
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 if (event.results[i].isFinal) {
                     finalTranscript += event.results[i][0].transcript;
-                } else {
-                    interimTranscript += event.results[i][0].transcript;
                 }
             }
 
-            // Handle Interim Results (Ghost Bubble)
-            if (interimTranscript) {
-                // High Sensitivity Haptic Feedback
-                // Vibrate on ANY length change to confirm "I am hearing SOMETHING"
-                if (navigator.vibrate) {
-                     navigator.vibrate(5); // Very faint tick
-                }
+            // v7.0: IGNORE Interim Results (No Ghost Bubble)
+            // We only care about finalized text for Context Analysis
 
-                if (!ghostBubble) {
-                    ghostBubble = addFlowBubble(interimTranscript, true); // True for Ghost
-                } else {
-                    const contentDiv = ghostBubble.querySelector('div:not(.bubble-speaker)');
-                    if (contentDiv) contentDiv.textContent = interimTranscript;
-                    // Auto scroll
-                    if (flowContainer) flowContainer.scrollTop = flowContainer.scrollHeight;
-                }
-            }
-
-            // Handle Final Results
             if (finalTranscript) {
-                if (ghostBubble) {
-                    ghostBubble.remove();
-                    ghostBubble = null;
-                }
-                
-                // Haptic Feedback: Sentence Complete
-                if (navigator.vibrate) navigator.vibrate([20]); // Short tick
-
-                appStatus.innerHTML = "📝 <span style='color: #cffafe;'>기록 저장 중...</span>";
+                // Haptic Feedback: Context Updated
+                if (navigator.vibrate) navigator.vibrate([20]); 
+                // Do NOT print text bubbles. Only log for AI.
                 logDialogueStream(finalTranscript);
             }
         };
@@ -222,12 +222,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 appStatus.innerHTML = "❌ <span style='color:#f87171'>마이크 권한을 허용해주세요.</span>";
             }
         };
+    }
 
-        recognition.onend = () => {
-            if (isAnalyzing) {
-                try { recognition.start(); } catch (e) { }
-            }
-        };
+    function createAudioDownloadLink(blob) {
+        if (!flowContainer) return;
+        
+        const url = URL.createObjectURL(blob);
+        const now = new Date();
+        const filename = `recording_${now.getHours()}${now.getMinutes()}.webm`;
+        
+        const container = document.createElement('div');
+        container.style.textAlign = 'center';
+        container.style.marginTop = '20px';
+        container.style.padding = '10px';
+        container.style.background = 'rgba(255,255,255,0.05)';
+        container.style.borderRadius = '10px';
+
+        const msg = document.createElement('p');
+        msg.textContent = "🎙️ 녹음 파일이 준비되었습니다.";
+        msg.style.fontSize = '0.9rem';
+        msg.style.marginBottom = '10px';
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.className = 'audio-btn';
+        a.innerHTML = `<span>💾 오디오 다운로드 (${(blob.size / 1024 / 1024).toFixed(2)} MB)</span>`;
+        a.style.display = 'inline-flex';
+
+        container.appendChild(msg);
+        container.appendChild(a);
+        
+        // Insert at the VERY TOP of flow container or bottom? 
+        // Bottom is better.
+        flowContainer.appendChild(container);
+        flowContainer.scrollTop = flowContainer.scrollHeight;
     }
 
     async function requestWakeLock() {
@@ -247,39 +276,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if (analyzeBtn) {
         analyzeBtn.addEventListener('click', () => {
             if (!recognition) {
-                alert("🚫 이 브라우저는 음성 인식을 지원하지 않습니다.\n(iPhone은 Safari, Android는 Chrome을 사용해 주세요.)");
+                alert("🚫 이 브라우저는 지원하지 않습니다.");
                 return;
             }
             if (isAnalyzing) {
-                stopAnalysis();
+                isAnalyzing = false; // Trigger onend logic
+                recognition.stop();
             } else {
                 isAnalyzing = true;
                 conversationHistory = [];
+                // Clear flow container except empty msg? 
+                // Let's clear it to start fresh
+                flowContainer.innerHTML = '<div class="empty-flow" style="display:none"></div>';
+                
                 try { 
                     recognition.start(); 
-                    appStatus.innerHTML = "🎙️ <span class='pulse'>실시간 분석 중... 말씀해 주세요.</span>";
-                    ambientOverlay.style.background = `radial-gradient(circle at center, #ef4444, transparent 70%)`;
                 } catch (e) { 
                     console.error(e);
-                    alert("⚠️ 마이크 실행 실패: 권한을 확인해주세요.");
                     isAnalyzing = false;
                 }
             }
         });
     }
 
-    async function stopAnalysis() {
-        isAnalyzing = false;
-        releaseWakeLock();
-        if (recognition) try { recognition.stop(); } catch (e) { }
-        appStatus.textContent = "분석이 종료되었습니다.";
-        analyzeBtn.innerHTML = '<span class="btn-icon">🎙️</span> <span>분석 시작</span>';
-        analyzeBtn.style.background = '';
-        ambientOverlay.style.background = `radial-gradient(circle at center, #6e45e2, transparent 70%)`;
-        if (conversationHistory.length > 2 && GEMINI_API_KEY) {
-            generateFinalReport();
-        }
-    }
+    // REMOVED stopAnalysis function, integrated into onend logic for cleaner flow
+
 
     function addFlowBubble(text, isGhost = false) {
         if (!flowContainer) return;
@@ -350,10 +371,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let pendingBubble = null;
 
         try {
-            appStatus.innerHTML = "📝 <span class='pulse'>기록 중...</span>";
+            appStatus.innerHTML = "📝 <span class='pulse'>맥락 분석 중...</span>";
             
-            // Add Neutral Bubble immediately
-            pendingBubble = addFlowBubble(text, false); 
+            // v7.0: Hidden Text Mode (Do NOT add bubble)
+            // pendingBubble = addFlowBubble(text, false); 
             
             const context = conversationHistory.slice(-5).map(h => h.text).join(' | ');
             const apiResponse = await callGemini(text, context);
