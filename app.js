@@ -249,49 +249,60 @@ document.addEventListener('DOMContentLoaded', () => {
         recognition.onstart = async () => {
             isAnalyzing = true;
             analyzeBtn.classList.add('recording');
-            analyzeBtn.innerHTML = '<span class="btn-icon">🛑</span> <span>분석 중지</span>';
+            analyzeBtn.innerHTML = '<span class="btn-icon">🛑</span> <span>추적 중지</span>';
             
             // Visual indicator
-            ambientOverlay.style.background = `radial-gradient(circle at center, rgba(16, 185, 129, 0.2), transparent 70%)`; // Green tint for context mode
+            ambientOverlay.style.background = `radial-gradient(circle at center, rgba(16, 185, 129, 0.2), transparent 70%)`; 
             analyzeBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
             
             appStatus.innerHTML = "🎧 <span class='pulse'>맥락 추적 & 녹음 중...</span>";
 
-            // Start Audio Recording
+            // 1. Immediate UI Feedback (Prevent "Freeze" feeling)
+            if (pocketBtn) pocketBtn.style.display = 'flex';
+            requestWakeLock();
+            if (navigator.vibrate) navigator.vibrate(200);
+
+            // 2. Start Audio Recording (Async & Safe)
+            if (typeof MediaRecorder === 'undefined') {
+                console.warn("MediaRecorder not supported.");
+                // alert("⚠️ 이 기기는 오디오 녹음을 지원하지 않습니다. 맥락 추적만 진행합니다."); 
+                return;
+            }
+
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Short timeout to prevent hanging if mic is busy
+                const streamPromise = navigator.mediaDevices.getUserMedia({ audio: true });
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Mic timeout")), 5000));
                 
-                // v7.2 Prefer m4a (mp4) over webm for better compatibility
+                const stream = await Promise.race([streamPromise, timeoutPromise]);
+                
+                // v7.2 Dynamic MimeType
                 let mimeType = 'audio/webm';
                 let fileExt = 'webm';
-                if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/mp4')) {
                     mimeType = 'audio/mp4';
                     fileExt = 'm4a';
-                } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+                } else if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/aac')) {
                     mimeType = 'audio/aac';
                     fileExt = 'aac';
                 }
 
                 mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
-                mediaRecorder.mimeTypeString = mimeType; // Store for stop event
+                mediaRecorder.mimeTypeString = mimeType;
                 mediaRecorder.extensionString = fileExt;
                 
                 audioChunks = [];
-                
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) audioChunks.push(event.data);
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
                 };
                 
                 mediaRecorder.start();
                 console.log(`Audio recording started (${mimeType}).`);
             } catch (err) {
-                console.error("Microphone access error for recording:", err);
-                alert("⚠️ 오디오 녹음을 시작할 수 없지만, 맥락 분석은 계속됩니다.");
+                console.error("Audio Recording Failed:", err);
+                // Don't alert aggressively to interrupt flow, just simple toast/log
+                appStatus.innerHTML = "👀 <span class='pulse'>맥락 추적 중 (녹음 불가)</span>";
             }
-
-            requestWakeLock();
-            if (pocketBtn) pocketBtn.style.display = 'flex';
-            if (navigator.vibrate) navigator.vibrate(200); 
         };
 
         recognition.onend = () => {
