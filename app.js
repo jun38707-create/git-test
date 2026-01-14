@@ -194,7 +194,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function analyzeAudioWithGemini(audioPart) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        // Updated Model to 'latest' to avoid version errors
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
         
         const prompt = `
         Listen to this audio recording.
@@ -284,6 +285,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const stream = await Promise.race([streamPromise, timeoutPromise]);
                 
+                // CRITICAL: Check if user stopped while waiting for Mic
+                if (!isAnalyzing) {
+                    console.log("User stopped before audio started. Aborting.");
+                    stream.getTracks().forEach(track => track.stop());
+                    return;
+                }
+
                 // v7.2 Dynamic MimeType
                 let mimeType = 'audio/webm';
                 let fileExt = 'webm';
@@ -340,11 +348,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         const mimeType = mediaRecorder.mimeTypeString || 'audio/webm';
                         const ext = mediaRecorder.extensionString || 'webm';
                         const audioBlob = new Blob(audioChunks, { type: mimeType });
-                        createAudioDownloadLink(audioBlob, ext);
+                        
+                        if (audioBlob.size > 0) {
+                            createAudioDownloadLink(audioBlob, ext);
+                        } else {
+                            console.warn("Audio recording empty.");
+                            // alert("녹음된 오디오가 없습니다 (너무 짧음)");
+                        }
                     };
                     // Stop all tracks to release mic
-                    mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    if (mediaRecorder.stream) {
+                         mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    }
+                } else {
+                    console.log("MediaRecorder not active or not initialized.");
+                    // Fallback: If we have chunks but state is weird? rare.
                 }
+                // Reset recorder
+                mediaRecorder = null; 
             }
         };
 
