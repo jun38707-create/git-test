@@ -1,5 +1,5 @@
-// VERSION CONTROL: 5.3 (Duplicate Fix & Clean Fallback)
-console.log("APP VERSION: 5.3 - Stability Patch");
+// VERSION CONTROL: 5.3.1 (Hotfix Syntax)
+console.log("APP VERSION: 5.3.1 - Hotfix Applied");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pocketBtn = document.getElementById('pocket-btn');
     const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 앱 버전 5.3 로드 완료 (안정화 패치)";
+    if (appStatus) appStatus.textContent = "✅ 앱 버전 5.3.1 로드 완료 (핫픽스 적용됨)";
 
     let isAnalyzing = false;
     let recognition = null;
