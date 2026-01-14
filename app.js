@@ -1,5 +1,5 @@
-// VERSION CONTROL: 5.3.1 (Hotfix Syntax)
-console.log("APP VERSION: 5.3.1 - Hotfix Applied");
+// VERSION CONTROL: 6.0 (Neutral Logger Reset)
+console.log("APP VERSION: 6.0 - Neutral Input & Topic Detection");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pocketBtn = document.getElementById('pocket-btn');
     const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 앱 버전 5.3.1 로드 완료 (핫픽스 적용됨)";
+    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v6.0 통합 로그)";
 
     let isAnalyzing = false;
     let recognition = null;
@@ -188,14 +188,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // High Sensitivity Haptic Feedback
                 // Vibrate on ANY length change to confirm "I am hearing SOMETHING"
                 if (navigator.vibrate) {
-                     navigator.vibrate(10); 
+                     navigator.vibrate(5); // Very faint tick
                 }
 
                 if (!ghostBubble) {
-                    ghostBubble = addFlowBubble('me', interimTranscript, 0);
-                    ghostBubble.classList.add('ghost');
-                    const speakerLabel = ghostBubble.querySelector('.bubble-speaker');
-                    if (speakerLabel) speakerLabel.textContent = "👂 듣는 중...";
+                    ghostBubble = addFlowBubble(interimTranscript, true); // True for Ghost
                 } else {
                     const contentDiv = ghostBubble.querySelector('div:not(.bubble-speaker)');
                     if (contentDiv) contentDiv.textContent = interimTranscript;
@@ -212,10 +209,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 // Haptic Feedback: Sentence Complete
-                if (navigator.vibrate) navigator.vibrate([50, 50]);
+                if (navigator.vibrate) navigator.vibrate([20]); // Short tick
 
-                appStatus.innerHTML = "👂 <span style='color: #cffafe;'>경청 완료, 분석 중...</span>";
-                triggerAnalysis(finalTranscript);
+                appStatus.innerHTML = "📝 <span style='color: #cffafe;'>기록 저장 중...</span>";
+                logDialogueStream(finalTranscript);
             }
         };
 
@@ -284,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function addFlowBubble(speaker, summary, speakerId = 0) {
+    function addFlowBubble(text, isGhost = false) {
         if (!flowContainer) return;
 
         // Remove empty state message if exists
@@ -292,25 +289,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (emptyMsg) emptyMsg.remove();
 
         const bubble = document.createElement('div');
-        const isMe = speaker === 'me' || speaker === '나';
-        bubble.className = `chat-bubble ${isMe ? 'me' : 'other'}`;
-
-        // Add specific color class for other speakers
-        if (!isMe && speakerId > 0) {
-            bubble.classList.add(`p${(speakerId % 5) || 5}`);
-        }
+        bubble.className = 'chat-bubble';
+        if (isGhost) bubble.classList.add('pending');
 
         const speakerLabel = document.createElement('span');
         speakerLabel.className = 'bubble-speaker';
-        // 한글 패치: me/other가 그대로 출력되지 않도록 변환
-        let displayName = speaker;
-        if (speaker === 'me') displayName = '나';
-        else if (speaker === 'other') displayName = '상대방';
         
-        speakerLabel.textContent = displayName;
+        // Timestamp as "Speaker"
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        speakerLabel.textContent = `Time: ${timeStr}`;
 
         const content = document.createElement('div');
-        content.textContent = summary;
+        content.textContent = text;
 
         bubble.appendChild(speakerLabel);
         bubble.appendChild(content);
@@ -319,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Scroll to bottom
         flowContainer.scrollTop = flowContainer.scrollHeight;
 
-        return bubble; // Return element for updates
+        return bubble; 
     }
 
     function addTopicDivider(topicText) {
@@ -327,13 +318,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const divider = document.createElement('div');
         divider.className = 'topic-divider';
-        divider.innerHTML = `<span>📌 주제 변경: ${topicText}</span>`;
+        divider.innerHTML = `<span>📌 주제: ${topicText}</span>`;
         
         flowContainer.appendChild(divider);
         flowContainer.scrollTop = flowContainer.scrollHeight;
     }
 
-    async function triggerAnalysis(text) {
+    async function logDialogueStream(text) {
         if (!text.trim()) return;
         
         // --- De-duplication Logic ---
@@ -356,61 +347,53 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Initialize with default/fallback response
-        let response = {
-            speaker: 'other',
-            speakerTag: '상대방', // Default to generic opponent
-            isTopicChanged: false,
-            currentTopic: null,
-            speakerId: 0
-        };
-        
         let pendingBubble = null;
 
         try {
-            appStatus.innerHTML = "🤖 <span class='pulse'>기록 중...</span>";
+            appStatus.innerHTML = "📝 <span class='pulse'>기록 중...</span>";
             
-            // Create pending bubble immediately with default info
-            pendingBubble = addFlowBubble('other', text, 0); 
+            // Add Neutral Bubble immediately
+            pendingBubble = addFlowBubble(text, false); 
             
-            const context = conversationHistory.slice(-5).map(h => `${h.speakerTag}: ${h.text}`).join(' | ');
+            const context = conversationHistory.slice(-5).map(h => h.text).join(' | ');
             const apiResponse = await callGemini(text, context);
             
+            let topicFound = null;
+
             if (apiResponse) {
-                response = apiResponse;
-            } else {
-                console.log("API returned null, using fallback.");
-            }
-
-            // 1. Handle Topic Change
-            if (response.isTopicChanged && response.currentTopic) {
-                 addTopicDivider(response.currentTopic);
-            }
-            if (response.currentTopic) {
-                appStatus.textContent = `📌 주제: ${response.currentTopic}`;
-            }
-
-            // 2. Update the bubble with refined speaker info
-            if (pendingBubble) {
-                const speakerLabel = pendingBubble.querySelector('.bubble-speaker');
-                if (speakerLabel) {
-                    speakerLabel.textContent = response.speakerTag || (response.speaker === 'me' ? '나' : '상대방');
+                if (apiResponse.isTopicChanged && apiResponse.currentTopic) {
+                     topicFound = apiResponse.currentTopic;
+                     // Insert divider BEFORE the current bubble if possible, 
+                     // but here we just append it after logic or maybe before next?
+                     // Let's insert it visually before this bubble if we could, 
+                     // but simplified: just add it now or next? 
+                     // User asked for "Topic Change" -> Add divider.
+                     
+                     // Move the bubble down? No, just add divider for NOW.
+                     // Actually, if topic changed, it applies to THIS text. 
+                     // So strictly it should be above. 
+                     // For v6.0 simplified, let's just add it at bottom for next turn?
+                     // Or better: Insert before current bubble. 
+                     if (pendingBubble) {
+                         const divider = document.createElement('div');
+                         divider.className = 'topic-divider';
+                         divider.innerHTML = `<span>📌 주제 변경: ${topicFound}</span>`;
+                         flowContainer.insertBefore(divider, pendingBubble);
+                     }
                 }
                 
-                // Update classes
-                pendingBubble.className = response.speaker === 'me' ? 'chat-bubble me' : 'chat-bubble other';
-                if (response.speaker !== 'me' && response.speakerId > 0) {
-                    pendingBubble.classList.add(`p${(response.speakerId % 5) || 5}`);
-                }
-            } else {
-                // Should not happen, but if pending bubble was lost
-                 addFlowBubble(response.speakerTag || response.speaker, text, response.speakerId || 0);
+                // Refine text if Gemini suggests a cleaner version?
+                // For now, keep raw text as user requested reliable input.
             }
 
-            // 3. Save to history
+            if (topicFound) {
+                appStatus.textContent = `📌 주제: ${topicFound}`;
+            }
+
+            // Save to history
             conversationHistory.push({
-                speaker: response.speaker || 'other',
-                speakerTag: response.speakerTag || (response.speaker === 'me' ? '나' : '상대방'),
+                speaker: 'neutral',
+                speakerTag: 'LOG',
                 text: text,
                 summary: text 
             });
@@ -418,8 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error(error);
-            appStatus.textContent = "⚠️ 기록 완료 (분석 지연)";
-            // Bubble already exists, no need to add another.
+            appStatus.textContent = "⚠️ 기록 완료 (AI 지연)";
         }
     }
 
@@ -428,28 +410,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
         
-        // Simplified Prompt for v5.0
+        // v6.0 Prompt: Neutral Logger & Topic Detector
         const prompt = `
-        You are a conversation logger and topic detector.
+        You are a smart conversation logger.
         
-        Current context:
-        ${context}
-        
-        New input: "${text}"
+        Context: ${context}
+        New Input: "${text}"
 
         Task:
-        1. Identify the speaker ("me" or "other"). If uncertain, infer from context.
-        2. Assign a Speaker ID (0 for me, 1-4 for others) for "other" speakers if disjoint.
-        3. Detect if the TOPIC has successfully changed.
-        4. Do NOT analyze mood, hidden intent, or suggestions. We only want to log the flow.
-        5. Just return the transcription confirmation and topic.
+        1. Detect if the TOPIC has successfully changed significantly.
+        2. Do NOT try to identify speakers.
+        3. Just return the Topic status.
 
         Output JSON:
         {
-            "speaker": "me" or "other",
-            "speakerId": number (0 for me, 1-4 for others),
-            "speakerTag": "Display Name" (e.g. "나", "상대방", "동료"),
-            "currentTopic": "Short Topic Title" (null if same as before),
+            "currentTopic": "Short Topic Title" (or null),
             "isTopicChanged": boolean
         }
         `;
@@ -466,7 +441,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             const resultText = data.candidates[0].content.parts[0].text;
             
-            // Clean JSON code blocks
             const jsonStr = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
             return JSON.parse(jsonStr);
         } catch (error) {

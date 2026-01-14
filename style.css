@@ -439,9 +439,8 @@ main {
 }
 
 .chat-bubble.pending {
-    opacity: 0.6;
-    border: 1px dashed rgba(255, 255, 255, 0.2);
-    animation: pulse 1.5s infinite;
+    opacity: 0.7;
+    border: 1px dashed #64748b;
 }
 
 .chat-bubble.ghost {
@@ -468,14 +467,16 @@ main {
         opacity: 1;
     }
 }
-/* Topic Divider */
+/* Topic Divider - Kept same */
 .topic-divider {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 1.5rem 0;
-    font-size: 0.8rem;
-    color: var(--text-dim);
+    margin: 20px 0;
+    color: #f59e0b; /* Amber 500 */
+    font-size: 0.85rem;
+    font-weight: bold;
+    opacity: 0.9;
     text-align: center;
 }
 
@@ -483,8 +484,8 @@ main {
     content: '';
     flex: 1;
     height: 1px;
-    background: rgba(255, 255, 255, 0.1);
-    margin: 0 1rem;
+    background: rgba(245, 158, 11, 0.3);
+    margin: 0 10px;
 }
 
 .topic-divider span {
