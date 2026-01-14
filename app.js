@@ -359,9 +359,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Initialize with default/fallback response
         let response = {
             speaker: 'other',
-            speakerTag: '상대방',
+            speakerTag: '상대방', // Default to generic opponent
             isTopicChanged: false,
-            currentTopic: null
+            currentTopic: null,
+            speakerId: 0
         };
         
         let pendingBubble = null;
@@ -370,26 +371,55 @@ document.addEventListener('DOMContentLoaded', () => {
             appStatus.innerHTML = "🤖 <span class='pulse'>기록 중...</span>";
             
             // Create pending bubble immediately with default info
-            // This ensures user sees the text even if API fails later
             pendingBubble = addFlowBubble('other', text, 0); 
             
             const context = conversationHistory.slice(-5).map(h => `${h.speakerTag}: ${h.text}`).join(' | ');
-                    addFlowBubble(response.speakerTag || response.speaker, text, response.speakerId || 0);
+            const apiResponse = await callGemini(text, context);
+            
+            if (apiResponse) {
+                response = apiResponse;
+            } else {
+                console.log("API returned null, using fallback.");
+            }
+
+            // 1. Handle Topic Change
+            if (response.isTopicChanged && response.currentTopic) {
+                 addTopicDivider(response.currentTopic);
+            }
+            if (response.currentTopic) {
+                appStatus.textContent = `📌 주제: ${response.currentTopic}`;
+            }
+
+            // 2. Update the bubble with refined speaker info
+            if (pendingBubble) {
+                const speakerLabel = pendingBubble.querySelector('.bubble-speaker');
+                if (speakerLabel) {
+                    speakerLabel.textContent = response.speakerTag || (response.speaker === 'me' ? '나' : '상대방');
+                }
+                
+                // Update classes
+                pendingBubble.className = response.speaker === 'me' ? 'chat-bubble me' : 'chat-bubble other';
+                if (response.speaker !== 'me' && response.speakerId > 0) {
+                    pendingBubble.classList.add(`p${(response.speakerId % 5) || 5}`);
                 }
             } else {
-                throw new Error("No response from Gemini");
+                // Should not happen, but if pending bubble was lost
+                 addFlowBubble(response.speakerTag || response.speaker, text, response.speakerId || 0);
             }
+
+            // 3. Save to history
+            conversationHistory.push({
+                speaker: response.speaker || 'other',
+                speakerTag: response.speakerTag || (response.speaker === 'me' ? '나' : '상대방'),
+                text: text,
+                summary: text 
+            });
+            if (conversationHistory.length > 100) conversationHistory.shift();
+
         } catch (error) {
             console.error(error);
-            appStatus.textContent = "⚠️ 분석 지연 (텍스트 저장됨)";
-            
-            // Fallback: Make it look like a generic message
-            if (pendingBubble) {
-                pendingBubble.classList.remove('pending');
-                pendingBubble.className = 'chat-bubble other'; // Default to other
-                const speakerLabel = pendingBubble.querySelector('.bubble-speaker');
-                if (speakerLabel) speakerLabel.textContent = "상대방 (분석 실패)";
-            }
+            appStatus.textContent = "⚠️ 기록 완료 (분석 지연)";
+            // Bubble already exists, no need to add another.
         }
     }
 
