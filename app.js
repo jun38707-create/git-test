@@ -378,29 +378,96 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.createElement('div');
         container.style.textAlign = 'center';
         container.style.marginTop = '20px';
-        container.style.padding = '10px';
+        container.style.padding = '15px';
         container.style.background = 'rgba(255,255,255,0.05)';
-        container.style.borderRadius = '10px';
+        container.style.borderRadius = '16px';
+        container.style.border = '1px solid rgba(255,255,255,0.1)';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '10px';
 
         const msg = document.createElement('p');
-        msg.textContent = "🎙️ 녹음 파일이 준비되었습니다.";
+        msg.innerHTML = "🎙️ <b>방금 녹음된 파일</b><br><span style='font-size:0.8rem; color:#aaa'>저장하거나 바로 분석할 수 있습니다.</span>";
         msg.style.fontSize = '0.9rem';
-        msg.style.marginBottom = '10px';
 
+        // 1. Analyze Button (New "Quick" Feature)
+        const analyzeBtn = document.createElement('button');
+        analyzeBtn.className = 'main-fab'; 
+        analyzeBtn.style.width = '100%';
+        analyzeBtn.style.padding = '10px';
+        analyzeBtn.style.fontSize = '0.95rem';
+        analyzeBtn.style.borderRadius = '12px';
+        analyzeBtn.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)'; // Purple for AI
+        analyzeBtn.innerHTML = '⚡ 이 내용 바로 분석하기';
+        
+        analyzeBtn.onclick = async () => {
+             // Reuse the existing analysis logic but with blob
+             analyzeBtn.disabled = true;
+             analyzeBtn.innerHTML = '⏳ 분석 중...';
+             
+             // Show Modal
+             reportOverlay.style.display = 'flex';
+             reportOverlay.classList.remove('hidden');
+             reportBody.innerHTML = `
+                <div style="text-align:center; padding: 2rem;">
+                    <h3 class="pulse">🤖 메모리에서 바로 분석 중...</h3>
+                    <p style="font-size: 0.8rem; color: #aaa; margin-top:10px;">방금 녹음된 내용을 AI가 듣고 있습니다.<br>잠시만 기다려주세요.</p>
+                </div>`;
+
+            try {
+                const base64Str = await blobToBase64(blob);
+                const transcript = await analyzeAudioWithGemini({
+                    inlineData: {
+                        data: base64Str,
+                        mimeType: blob.type // e.g. audio/webm or audio/mp4
+                    }
+                });
+                
+                if (transcript) {
+                    reportBody.innerHTML = formatTranscript(transcript);
+                    const copyBtn = document.getElementById('copy-report-btn');
+                    if (copyBtn) {
+                        copyBtn.disabled = false;
+                        copyBtn.style.opacity = '1';
+                        copyBtn.textContent = '분석 결과 복사';
+                    }
+                }
+            } catch (error) {
+                console.error("Quick Analysis Error:", error);
+                reportBody.innerHTML = `<div style="text-align:center; padding: 2rem; color: #f87171;">
+                    <h3>❌ 분석 실패</h3>
+                    <p>${error.message}</p>
+                </div>`;
+            }
+            analyzeBtn.disabled = false;
+            analyzeBtn.innerHTML = '⚡ 이 내용 다시 분석하기';
+        };
+
+        // 2. Download Button
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
-        a.className = 'audio-btn';
-        a.innerHTML = `<span>💾 오디오 다운로드 (${(blob.size / 1024 / 1024).toFixed(2)} MB)</span>`;
-        a.style.display = 'inline-flex';
+        a.className = 'btn-secondary'; // Reuse secondary style
+        a.innerHTML = `<span>💾 내 폰에 저장 (${(blob.size / 1024 / 1024).toFixed(2)} MB)</span>`;
+        a.style.textAlign = 'center';
+        a.style.textDecoration = 'none';
+        a.style.display = 'block';
 
         container.appendChild(msg);
+        container.appendChild(analyzeBtn);
         container.appendChild(a);
         
-        // Insert at the VERY TOP of flow container or bottom? 
-        // Bottom is better.
         flowContainer.appendChild(container);
         flowContainer.scrollTop = flowContainer.scrollHeight;
+    }
+
+    function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
     }
 
     async function requestWakeLock() {
