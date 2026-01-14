@@ -1,5 +1,5 @@
-// VERSION CONTROL: 8.5 (Critical Save Logic Fix)
-console.log("APP VERSION: 8.5 - Restored Save Handler");
+// VERSION CONTROL: 9.0 (Simplification)
+console.log("APP VERSION: 9.0 - Real-time Only & Save");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pocketBtn = document.getElementById('pocket-btn');
     const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v8.5 저장 오류 수정)";
+    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v9.0 실시간 분석 전용)";
 
     let isAnalyzing = false;
     let recognition = null;
@@ -120,61 +120,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     } // CRITICAL FIX: Close the if (pocketBtn) block
 
-    // --- Audio File Upload & Analysis Logic (v7.0) ---
+    // --- Audio File Upload & Analysis Logic REMOVED (v9.0) ---
+    /*
     const audioUpload = document.getElementById('audio-upload');
     if (audioUpload) {
-        audioUpload.addEventListener('change', async (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (!GEMINI_API_KEY) {
-                alert("⚠️ API 키가 필요합니다. 설정에서 키를 먼저 입력해주세요.");
-                settingsPanel.classList.remove('hidden');
-                return;
-            }
-
-            // Show Loading in Report Modal
-            reportOverlay.style.display = 'flex';
-            reportOverlay.classList.remove('hidden');
-            reportBody.innerHTML = `
-                <div style="text-align:center; padding: 2rem;">
-                    <h3 class="pulse">🎧 오디오 분석 중...</h3>
-                    <p style="font-size: 0.8rem; color: #aaa; margin-top:10px;">파일 크기에 따라 10~30초 정도 걸릴 수 있습니다.<br>AI가 목소리를 듣고 화자를 구분하고 있습니다.</p>
-                </div>`;
-
-            try {
-                // Convert file to Base64
-                const base64Audio = await fileToGenerativePart(file);
-                
-                // Call Gemini 1.5 Flash (Multimodal)
-                const transcript = await analyzeAudioWithGemini(base64Audio);
-                
-                // Display Result
-                if (transcript) {
-                    reportBody.innerHTML = formatTranscript(transcript);
-                    const copyBtn = document.getElementById('copy-report-btn');
-                    if (copyBtn) {
-                        copyBtn.disabled = false;
-                        copyBtn.style.opacity = '1';
-                        copyBtn.textContent = '분석 결과 복사';
-                    }
-                } else {
-                    throw new Error("No transcript generated.");
-                }
-
-            } catch (error) {
-                console.error("Audio Analysis Error:", error);
-                reportBody.innerHTML = `<div style="text-align:center; padding: 2rem; color: #f87171;">
-                    <h3>❌ 분석 실패</h3>
-                    <p>오류가 발생했습니다: ${error.message}</p>
-                    <p style="font-size: 0.8rem; margin-top: 10px;">파일이 너무 크거나(20MB 이하 권장), API 키 권한을 확인해주세요.</p>
-                </div>`;
-            }
-            
-            // Reset input so same file can be selected again
-            audioUpload.value = '';
-        });
+        ... removed ...
     }
+    */
 
     async function fileToGenerativePart(file) {
         return new Promise((resolve, reject) => {
@@ -387,74 +339,23 @@ document.addEventListener('DOMContentLoaded', () => {
         container.style.gap = '10px';
 
         const msg = document.createElement('p');
-        msg.innerHTML = "🎙️ <b>방금 녹음된 파일</b><br><span style='font-size:0.8rem; color:#aaa'>저장하거나 바로 분석할 수 있습니다.</span>";
+        msg.innerHTML = "🎙️ <b>방금 녹음된 파일</b><br><span style='font-size:0.8rem; color:#aaa'>파일이 자동으로 저장되었습니다.</span>";
         msg.style.fontSize = '0.9rem';
 
-        // 1. Analyze Button (New "Quick" Feature)
-        const analyzeBtn = document.createElement('button');
-        analyzeBtn.className = 'main-fab'; 
-        analyzeBtn.style.width = '100%';
-        analyzeBtn.style.padding = '10px';
-        analyzeBtn.style.fontSize = '0.95rem';
-        analyzeBtn.style.borderRadius = '12px';
-        analyzeBtn.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)'; // Purple for AI
-        analyzeBtn.innerHTML = '⚡ 이 내용 바로 분석하기';
-        
-        analyzeBtn.onclick = async () => {
-             // Reuse the existing analysis logic but with blob
-             analyzeBtn.disabled = true;
-             analyzeBtn.innerHTML = '⏳ 분석 중...';
-             
-             // Show Modal
-             reportOverlay.style.display = 'flex';
-             reportOverlay.classList.remove('hidden');
-             reportBody.innerHTML = `
-                <div style="text-align:center; padding: 2rem;">
-                    <h3 class="pulse">🤖 메모리에서 바로 분석 중...</h3>
-                    <p style="font-size: 0.8rem; color: #aaa; margin-top:10px;">방금 녹음된 내용을 AI가 듣고 있습니다.<br>잠시만 기다려주세요.</p>
-                </div>`;
-
-            try {
-                const base64Str = await blobToBase64(blob);
-                const transcript = await analyzeAudioWithGemini({
-                    inlineData: {
-                        data: base64Str,
-                        mimeType: blob.type // e.g. audio/webm or audio/mp4
-                    }
-                });
-                
-                if (transcript) {
-                    reportBody.innerHTML = formatTranscript(transcript);
-                    const copyBtn = document.getElementById('copy-report-btn');
-                    if (copyBtn) {
-                        copyBtn.disabled = false;
-                        copyBtn.style.opacity = '1';
-                        copyBtn.textContent = '분석 결과 복사';
-                    }
-                }
-            } catch (error) {
-                console.error("Quick Analysis Error:", error);
-                reportBody.innerHTML = `<div style="text-align:center; padding: 2rem; color: #f87171;">
-                    <h3>❌ 분석 실패</h3>
-                    <p>${error.message}</p>
-                </div>`;
-            }
-            analyzeBtn.disabled = false;
-            analyzeBtn.innerHTML = '⚡ 이 내용 다시 분석하기';
-        };
+        // REMOVED "Analyze Now" Button (v9.0 Request)
 
         // 2. Download Button
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
         a.className = 'btn-secondary'; // Reuse secondary style
-        a.innerHTML = `<span>💾 내 폰에 저장 (${(blob.size / 1024 / 1024).toFixed(2)} MB)</span>`;
+        a.innerHTML = `<span>💾 다시 저장하기 (${(blob.size / 1024 / 1024).toFixed(2)} MB)</span>`;
         a.style.textAlign = 'center';
         a.style.textDecoration = 'none';
         a.style.display = 'block';
 
         container.appendChild(msg);
-        container.appendChild(analyzeBtn);
+        // container.appendChild(analyzeBtn); // Removed
         container.appendChild(a);
         
         flowContainer.appendChild(container);
