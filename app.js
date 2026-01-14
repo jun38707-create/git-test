@@ -118,7 +118,123 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             lastTap = currentTime;
         });
+    // --- Audio File Upload & Analysis Logic (v7.0) ---
+    const audioUpload = document.getElementById('audio-upload');
+    if (audioUpload) {
+        audioUpload.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!GEMINI_API_KEY) {
+                alert("⚠️ API 키가 필요합니다. 설정에서 키를 먼저 입력해주세요.");
+                settingsPanel.classList.remove('hidden');
+                return;
+            }
+
+            // Show Loading in Report Modal
+            reportOverlay.style.display = 'flex';
+            reportOverlay.classList.remove('hidden');
+            reportBody.innerHTML = `
+                <div style="text-align:center; padding: 2rem;">
+                    <h3 class="pulse">🎧 오디오 분석 중...</h3>
+                    <p style="font-size: 0.8rem; color: #aaa; margin-top:10px;">파일 크기에 따라 10~30초 정도 걸릴 수 있습니다.<br>AI가 목소리를 듣고 화자를 구분하고 있습니다.</p>
+                </div>`;
+
+            try {
+                // Convert file to Base64
+                const base64Audio = await fileToGenerativePart(file);
+                
+                // Call Gemini 1.5 Flash (Multimodal)
+                const transcript = await analyzeAudioWithGemini(base64Audio);
+                
+                // Display Result
+                if (transcript) {
+                    reportBody.innerHTML = formatTranscript(transcript);
+                    const copyBtn = document.getElementById('copy-report-btn');
+                    if (copyBtn) {
+                        copyBtn.disabled = false;
+                        copyBtn.style.opacity = '1';
+                        copyBtn.textContent = '분석 결과 복사';
+                    }
+                } else {
+                    throw new Error("No transcript generated.");
+                }
+
+            } catch (error) {
+                console.error("Audio Analysis Error:", error);
+                reportBody.innerHTML = `<div style="text-align:center; padding: 2rem; color: #f87171;">
+                    <h3>❌ 분석 실패</h3>
+                    <p>오류가 발생했습니다: ${error.message}</p>
+                    <p style="font-size: 0.8rem; margin-top: 10px;">파일이 너무 크거나(20MB 이하 권장), API 키 권한을 확인해주세요.</p>
+                </div>`;
+            }
+            
+            // Reset input so same file can be selected again
+            audioUpload.value = '';
+        });
     }
+
+    async function fileToGenerativePart(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result.split(',')[1];
+                resolve({
+                    inlineData: {
+                        data: base64String,
+                        mimeType: file.type
+                    }
+                });
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function analyzeAudioWithGemini(audioPart) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        
+        const prompt = `
+        Listen to this audio recording of a conversation.
+        Task:
+        1. Transcribe the conversation exactly into Korean.
+        2. Distinguish speakers by voice (e.g., Speaker A, Speaker B).
+        3. Format the output cleanly.
+
+        Output Format:
+        <h2>🎙️ 대화 녹취록</h2>
+        <ul>
+        <li><b>화자 A:</b> ...message...</li>
+        <li><b>화자 B:</b> ...message...</li>
+        </ul>
+        <hr>
+        <h3>📝 요약</h3>
+        <p>...summary...</p>
+        `;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        audioPart
+                    ]
+                }]
+            })
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+        return data.candidates[0].content.parts[0].text;
+    }
+
+    function formatTranscript(rawText) {
+        // Simple formatter to ensure it looks good in HTML
+        return rawText.replace(/\n/g, '<br>');
+    }
+
 
     // --- Speech Recognition & Audio Recording Setup ---
     let mediaRecorder = null;
