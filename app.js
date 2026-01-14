@@ -195,27 +195,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         
         const prompt = `
-        Listen to this audio recording of a conversation.
+        Listen to this audio recording.
         
         Task:
-        1. **Transcribe**: Write down the conversation exactly in Korean, identifying speakers (e.g., A, B).
-        2. **Analyze Context**: specificially analyze the 'Topic' and 'Hidden Nuance/Context'.
+        1. **Forget Transcription**: Do NOT write down what was said. The user has the audio file.
+        2. **Focus on Context**: Analyze the specific 'Topic' and 'Hidden Nuance/Context' (Atmosphere).
+        3. **Key Signals**: Identify any important decisions, conflicts, or agreements.
         
         Output Format (HTML):
-        <h2>📌 핵심 주제 & 맥락</h2>
+        <h2>📌 핵심 주제 & 상황</h2>
         <ul>
             <li><b>주제:</b> [One sentence topic]</li>
-            <li><b>맥락/분위기:</b> [Briefly explain the situation, e.g., Negotiation, Casual, Argument]</li>
+            <li><b>분위기:</b> [Negotiation, Casual, Argument, etc.]</li>
         </ul>
         <hr>
-        <h2>🎙️ 상세 대화 내용</h2>
+        <h3>💡 주요 감지 포인트</h3>
         <ul>
-            <li><b>화자 A:</b> ...</li>
-            <li><b>화자 B:</b> ...</li>
+            <li><b>결정 사항:</b> ...</li>
+            <li><b>주의 신호:</b> ...</li>
         </ul>
         <hr>
-        <h3>📝 3줄 요약</h3>
-        <p>1. ...<br>2. ...<br>3. ...</p>
+        <p style="text-align:center; color:#aaa; font-size:0.8rem;">(상세 내용은 오디오 파일을 참고하세요)</p>
         `;
 
         const response = await fetch(url, {
