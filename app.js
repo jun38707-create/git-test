@@ -1,5 +1,5 @@
-// VERSION CONTROL: 8.2 (Auto-Download Fix & Cache Bust)
-console.log("APP VERSION: 8.2 - Auto-Save with Toast");
+// VERSION CONTROL: 8.3 (Fallback Toast)
+console.log("APP VERSION: 8.3 - Auto-Save with Fallback");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pocketBtn = document.getElementById('pocket-btn');
     const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v8.2 자동 저장 활성화)";
+    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v8.3 안전 저장 모드)";
 
     let isAnalyzing = false;
     let recognition = null;
@@ -497,15 +497,18 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             a.click();
             // Show Toast
-            showToast("💾 오디오 파일이 저장되었습니다!");
+            showToast("💾 오디오 파일이 저장되었습니다!", "success");
         } catch (err) {
             console.error("Auto-download failed:", err);
-            // Fallback: Just let the button be there
+            // Fallback: Tell user to click manually
+            showToast("⚠️ 자동 저장이 차단되었습니다. 버튼을 눌러주세요!", "error");
         }
 
         // 3. Remove (Cleanup)
         setTimeout(() => {
-            document.body.removeChild(a);
+            if (document.body.contains(a)) {
+                document.body.removeChild(a);
+            }
         }, 100);
 
         flowContainer.appendChild(container);
@@ -513,7 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // New Helper: Toast Notification
-    function showToast(message) {
+    function showToast(message, type = "success") {
         let toast = document.getElementById('toast-msg');
         if (!toast) {
             toast = document.createElement('div');
@@ -522,8 +525,6 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.style.bottom = '100px';
             toast.style.left = '50%';
             toast.style.transform = 'translateX(-50%)';
-            toast.style.background = 'rgba(16, 185, 129, 0.9)'; // Green
-            toast.style.color = 'white';
             toast.style.padding = '12px 24px';
             toast.style.borderRadius = '30px';
             toast.style.zIndex = '3000';
@@ -532,6 +533,14 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.style.transition = 'opacity 0.5s';
             document.body.appendChild(toast);
         }
+        
+        // Dynamic Style based on type
+        if (type === 'error') {
+            toast.style.background = 'rgba(239, 68, 68, 0.9)'; // Red
+        } else {
+            toast.style.background = 'rgba(16, 185, 129, 0.9)'; // Green
+        }
+
         toast.textContent = message;
         toast.style.opacity = '1';
         setTimeout(() => {
