@@ -1,5 +1,5 @@
-// VERSION CONTROL: 9.2 (Smart TOC Map)
-console.log("APP VERSION: 9.2 - Timestamp Map & Bookmark");
+// VERSION CONTROL: 9.2.1 (Force Update)
+console.log("APP VERSION: 9.2.1 - Loaded at " + new Date().toLocaleTimeString());
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
