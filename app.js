@@ -1,5 +1,5 @@
-// VERSION CONTROL: 5.1 (Pocket Mode & Vibration)
-console.log("APP VERSION: 5.1 - Stealth & Haptic Feedback");
+// VERSION CONTROL: 5.2 (High Sensitivity Tune)
+console.log("APP VERSION: 5.2 - Sensitivity Boost");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -57,10 +57,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const reportBody = document.getElementById('report-body');
     const flowContainer = document.getElementById('flow-container');
     const saveBtn = document.getElementById('save-btn');
-    const pocketBtn = document.getElementById('pocket-btn'); // New Stealth Button
+    const pocketBtn = document.getElementById('pocket-btn');
     const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 앱 버전 5.1 로드 완료 (주머니 모드 + 진동)";
+    if (appStatus) appStatus.textContent = "✅ 앱 버전 5.2 로드 완료 (고감도 모드)";
 
     let isAnalyzing = false;
     let recognition = null;
@@ -126,6 +126,10 @@ document.addEventListener('DOMContentLoaded', () => {
             isAnalyzing = true;
             analyzeBtn.classList.add('recording');
             analyzeBtn.innerHTML = '<span class="btn-icon">🛑</span> <span>분석 중지</span>';
+            
+            // Visual indicator of recording
+            ambientOverlay.style.background = `radial-gradient(circle at center, rgba(239, 68, 68, 0.2), transparent 70%)`;
+            
             analyzeBtn.style.background = 'linear-gradient(135deg, #ef4444, #991b1b)';
             requestWakeLock();
             
@@ -176,17 +180,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Handle Interim Results (Ghost Bubble)
             if (interimTranscript) {
-                // Subtle Haptic Feedback for "I hear you"
-                if (navigator.vibrate && interimTranscript.length % 5 === 0) {
-                     // Vibrate every few chars to avoid buzzing too much
-                     navigator.vibrate(15); 
+                // High Sensitivity Haptic Feedback
+                // Vibrate on ANY length change to confirm "I am hearing SOMETHING"
+                if (navigator.vibrate) {
+                     navigator.vibrate(10); 
                 }
 
                 if (!ghostBubble) {
                     ghostBubble = addFlowBubble('me', interimTranscript, 0);
                     ghostBubble.classList.add('ghost');
                     const speakerLabel = ghostBubble.querySelector('.bubble-speaker');
-                    if (speakerLabel) speakerLabel.textContent = "듣는 중...";
+                    if (speakerLabel) speakerLabel.textContent = "👂 듣는 중...";
                 } else {
                     const contentDiv = ghostBubble.querySelector('div:not(.bubble-speaker)');
                     if (contentDiv) contentDiv.textContent = interimTranscript;
