@@ -1,5 +1,5 @@
-// VERSION CONTROL: 9.1 (Restored One-Click Analysis)
-console.log("APP VERSION: 9.1 - Recorder + One-Click Analyze");
+// VERSION CONTROL: 9.2 (Smart TOC Map)
+console.log("APP VERSION: 9.2 - Timestamp Map & Bookmark");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pocketBtn = document.getElementById('pocket-btn');
     const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v9.1 통합 분석 모드)";
+    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v9.2 스마트 목차 생성기)";
 
     let isAnalyzing = false;
     let recognition = null;
