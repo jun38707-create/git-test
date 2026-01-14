@@ -118,6 +118,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             lastTap = currentTime;
         });
+    } // CRITICAL FIX: Close the if (pocketBtn) block
+
     // --- Audio File Upload & Analysis Logic (v7.0) ---
     const audioUpload = document.getElementById('audio-upload');
     if (audioUpload) {
