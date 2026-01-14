@@ -489,10 +489,54 @@ document.addEventListener('DOMContentLoaded', () => {
         flowContainer.appendChild(container);
         flowContainer.scrollTop = flowContainer.scrollHeight;
 
-        // v8.0 Auto-Save: Automatically trigger download
+        // v8.1 Robust Auto-Download
+        // 1. Append to body (Required for Firefox/Mobile)
+        document.body.appendChild(a);
+        
+        // 2. Trigger Click
+        try {
+            a.click();
+            // Show Toast
+            showToast("💾 오디오 파일이 저장되었습니다!");
+        } catch (err) {
+            console.error("Auto-download failed:", err);
+            // Fallback: Just let the button be there
+        }
+
+        // 3. Remove (Cleanup)
         setTimeout(() => {
-            a.click(); 
+            document.body.removeChild(a);
         }, 100);
+
+        flowContainer.appendChild(container);
+        flowContainer.scrollTop = flowContainer.scrollHeight;
+    }
+
+    // New Helper: Toast Notification
+    function showToast(message) {
+        let toast = document.getElementById('toast-msg');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'toast-msg';
+            toast.style.position = 'fixed';
+            toast.style.bottom = '100px';
+            toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
+            toast.style.background = 'rgba(16, 185, 129, 0.9)'; // Green
+            toast.style.color = 'white';
+            toast.style.padding = '12px 24px';
+            toast.style.borderRadius = '30px';
+            toast.style.zIndex = '3000';
+            toast.style.fontSize = '0.9rem';
+            toast.style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)';
+            toast.style.transition = 'opacity 0.5s';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.style.opacity = '1';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+        }, 3000);
     }
 
     function blobToBase64(blob) {
