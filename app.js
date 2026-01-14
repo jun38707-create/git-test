@@ -196,20 +196,26 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const prompt = `
         Listen to this audio recording of a conversation.
+        
         Task:
-        1. Transcribe the conversation exactly into Korean.
-        2. Distinguish speakers by voice (e.g., Speaker A, Speaker B).
-        3. Format the output cleanly.
-
-        Output Format:
-        <h2>🎙️ 대화 녹취록</h2>
+        1. **Transcribe**: Write down the conversation exactly in Korean, identifying speakers (e.g., A, B).
+        2. **Analyze Context**: specificially analyze the 'Topic' and 'Hidden Nuance/Context'.
+        
+        Output Format (HTML):
+        <h2>📌 핵심 주제 & 맥락</h2>
         <ul>
-        <li><b>화자 A:</b> ...message...</li>
-        <li><b>화자 B:</b> ...message...</li>
+            <li><b>주제:</b> [One sentence topic]</li>
+            <li><b>맥락/분위기:</b> [Briefly explain the situation, e.g., Negotiation, Casual, Argument]</li>
         </ul>
         <hr>
-        <h3>📝 요약</h3>
-        <p>...summary...</p>
+        <h2>🎙️ 상세 대화 내용</h2>
+        <ul>
+            <li><b>화자 A:</b> ...</li>
+            <li><b>화자 B:</b> ...</li>
+        </ul>
+        <hr>
+        <h3>📝 3줄 요약</h3>
+        <p>1. ...<br>2. ...<br>3. ...</p>
         `;
 
         const response = await fetch(url, {
