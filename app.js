@@ -1,5 +1,5 @@
-// VERSION CONTROL: 7.0 (Context Tracker & Audio Switch)
-console.log("APP VERSION: 7.0 - Hidden Text & Audio Recorder");
+// VERSION CONTROL: 8.2 (Auto-Download Fix & Cache Bust)
+console.log("APP VERSION: 8.2 - Auto-Save with Toast");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pocketBtn = document.getElementById('pocket-btn');
     const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v7.0 맥락 트래커 & 오디오)";
+    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v8.2 자동 저장 활성화)";
 
     let isAnalyzing = false;
     let recognition = null;

@@ -174,12 +174,11 @@
     <script>
         if ('serviceWorker' in navigator) {
             // Force update SW with version query
-            navigator.serviceWorker.register('sw.js?v=4.1')
+            navigator.serviceWorker.register('sw.js?v=8.2')
                 .then((reg) => console.log('✅ Service Worker Registered:', reg))
                 .catch(err => console.error('❌ SW Failed:', err));
         }
     </script>
-    <script src="app.js?v=7.0_CONTEXT_TRACKER_FINAL"></script>
+    <script src="app.js?v=8.2_AUTO_SAVE_TOAST"></script>
 </body>
-
 </html>
