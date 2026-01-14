@@ -1,5 +1,5 @@
-// VERSION CONTROL: 8.3 (Fallback Toast)
-console.log("APP VERSION: 8.3 - Auto-Save with Fallback");
+// VERSION CONTROL: 8.4 (Decoupled Stop Logic)
+console.log("APP VERSION: 8.4 - Instant Stop & Save");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pocketBtn = document.getElementById('pocket-btn');
     const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v8.3 안전 저장 모드)";
+    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v8.4 즉시 저장 모드)";
 
     let isAnalyzing = false;
     let recognition = null;
@@ -323,49 +323,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         recognition.onend = () => {
             if (isAnalyzing) {
+                // Unexpected stop (Silence/Error) -> Restart
                 if (navigator.vibrate) navigator.vibrate(500);
                 console.log('Restarting recognition...');
-                recognition.start();
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.log("Restart failed:", e);
+                    isAnalyzing = false; // Give up
+                    finalizeRecording();
+                }
             } else {
-                // STOPPED INTENTIONALLY
-                analyzeBtn.classList.remove('recording');
-                analyzeBtn.innerHTML = '<span class="btn-icon">🎙️</span> <span>추적 시작</span>';
-                analyzeBtn.style.background = '';
-                appStatus.innerHTML = "✅ 추적 종료";
-                ambientOverlay.style.background = '';
-                
-                if (pocketBtn) {
-                    pocketBtn.style.display = 'none';
-                    if (pocketOverlay) pocketOverlay.style.display = 'none';
-                }
-                
-                if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
-
-                // Stop Audio Recording
-                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                    mediaRecorder.stop();
-                    mediaRecorder.onstop = () => {
-                        const mimeType = mediaRecorder.mimeTypeString || 'audio/webm';
-                        const ext = mediaRecorder.extensionString || 'webm';
-                        const audioBlob = new Blob(audioChunks, { type: mimeType });
-                        
-                        if (audioBlob.size > 0) {
-                            createAudioDownloadLink(audioBlob, ext);
-                        } else {
-                            console.warn("Audio recording empty.");
-                            // alert("녹음된 오디오가 없습니다 (너무 짧음)");
-                        }
-                    };
-                    // Stop all tracks to release mic
-                    if (mediaRecorder.stream) {
-                         mediaRecorder.stream.getTracks().forEach(track => track.stop());
-                    }
-                } else {
-                    console.log("MediaRecorder not active or not initialized.");
-                    // Fallback: If we have chunks but state is weird? rare.
-                }
-                // Reset recorder
-                mediaRecorder = null; 
+                // Normal User Stop -> Handled by finalizeRecording() already.
+                // Just ensure we are clean.
+                console.log("Recognition ended normally.");
             }
         };
 
@@ -571,6 +542,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // v8.4 Decoupled Stop Logic
+    function finalizeRecording() {
+        console.log("Finalizing recording...");
+        
+        // 1. UI Updates
+        analyzeBtn.classList.remove('recording');
+        analyzeBtn.innerHTML = '<span class="btn-icon">🎙️</span> <span>추적 시작</span>';
+        analyzeBtn.style.background = '';
+        appStatus.innerHTML = "✅ 추적 종료";
+        ambientOverlay.style.background = '';
+        
+        if (pocketBtn) {
+            pocketBtn.style.display = 'none';
+            if (pocketOverlay) pocketOverlay.style.display = 'none';
+        }
+        
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
+
+        // 2. Stop Audio Recording & Save
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            // Note: mediaRecorder.onstop will handle the download logic
+            
+            // Force stop streams immediately (Fixes "Mic Notification" stuck issue)
+            if (mediaRecorder.stream) {
+                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+        } else {
+            console.log("MediaRecorder was not active.");
+        }
+        mediaRecorder = null;
+    }
+
     if (analyzeBtn) {
         analyzeBtn.addEventListener('click', () => {
             if (!recognition) {
@@ -578,13 +582,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (isAnalyzing) {
-                isAnalyzing = false; // Trigger onend logic
+                // STOP ACTION
+                isAnalyzing = false; 
                 recognition.stop();
+                finalizeRecording(); // Call immediately! Don't wait for onend
             } else {
+                // START ACTION
                 isAnalyzing = true;
                 conversationHistory = [];
-                // Clear flow container except empty msg? 
-                // Let's clear it to start fresh
                 flowContainer.innerHTML = '<div class="empty-flow" style="display:none"></div>';
                 
                 try { 
@@ -597,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // REMOVED stopAnalysis function, integrated into onend logic for cleaner flow
+    // REMOVED stopAnalysis function, integrated above
 
 
     function addFlowBubble(text, isGhost = false) {
