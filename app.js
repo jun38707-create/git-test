@@ -260,7 +260,22 @@ document.addEventListener('DOMContentLoaded', () => {
             // Start Audio Recording
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
+                
+                // v7.2 Prefer m4a (mp4) over webm for better compatibility
+                let mimeType = 'audio/webm';
+                let fileExt = 'webm';
+                if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                    mimeType = 'audio/mp4';
+                    fileExt = 'm4a';
+                } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+                    mimeType = 'audio/aac';
+                    fileExt = 'aac';
+                }
+
+                mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+                mediaRecorder.mimeTypeString = mimeType; // Store for stop event
+                mediaRecorder.extensionString = fileExt;
+                
                 audioChunks = [];
                 
                 mediaRecorder.ondataavailable = (event) => {
@@ -268,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                 
                 mediaRecorder.start();
-                console.log("Audio recording started.");
+                console.log(`Audio recording started (${mimeType}).`);
             } catch (err) {
                 console.error("Microphone access error for recording:", err);
                 alert("⚠️ 오디오 녹음을 시작할 수 없지만, 맥락 분석은 계속됩니다.");
@@ -303,8 +318,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                     mediaRecorder.stop();
                     mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        createAudioDownloadLink(audioBlob);
+                        const mimeType = mediaRecorder.mimeTypeString || 'audio/webm';
+                        const ext = mediaRecorder.extensionString || 'webm';
+                        const audioBlob = new Blob(audioChunks, { type: mimeType });
+                        createAudioDownloadLink(audioBlob, ext);
                     };
                     // Stop all tracks to release mic
                     mediaRecorder.stream.getTracks().forEach(track => track.stop());
@@ -340,12 +357,12 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function createAudioDownloadLink(blob) {
+    function createAudioDownloadLink(blob, ext) {
         if (!flowContainer) return;
         
         const url = URL.createObjectURL(blob);
         const now = new Date();
-        const filename = `recording_${now.getHours()}${now.getMinutes()}.webm`;
+        const filename = `recording_${now.getHours()}${now.getMinutes()}.${ext}`;
         
         const container = document.createElement('div');
         container.style.textAlign = 'center';
