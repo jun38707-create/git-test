@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pocketBtn = document.getElementById('pocket-btn');
     const pocketOverlay = document.getElementById('pocket-overlay');
 
-    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v7.0 맥락 트래커)";
+    if (appStatus) appStatus.textContent = "✅ 시스템 준비 완료 (v7.0 맥락 트래커 & 오디오)";
 
     let isAnalyzing = false;
     let recognition = null;
