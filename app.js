@@ -488,6 +488,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         flowContainer.appendChild(container);
         flowContainer.scrollTop = flowContainer.scrollHeight;
+
+        // v8.0 Auto-Save: Automatically trigger download
+        setTimeout(() => {
+            a.click(); 
+        }, 100);
     }
 
     function blobToBase64(blob) {
