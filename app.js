@@ -1,5 +1,5 @@
-// VERSION CONTROL: 4.2 (Interim Results "Ghost Bubble")
-console.log("APP VERSION: 4.2 - Real-time Interim Typing");
+// VERSION CONTROL: 5.0 (Simple Logger & Save)
+console.log("APP VERSION: 5.0 - Simple Context Logger");
 
 // --- 1. CRITICAL RECOVERY LAYER (Move to top, No dependencies) ---
 window.closeReport = () => {
@@ -47,9 +47,6 @@ window.panicReset = () => {
 document.addEventListener('DOMContentLoaded', () => {
     const analyzeBtn = document.getElementById('analyze-btn');
     const appStatus = document.getElementById('app-status');
-    const moodStatus = document.getElementById('mood-status');
-    const intentStatus = document.getElementById('intent-status');
-    const actionSuggestion = document.getElementById('action-suggestion');
     const ambientOverlay = document.getElementById('ambient-overlay');
     const textInput = document.getElementById('text-input');
     const settingsToggle = document.getElementById('settings-toggle');
@@ -59,8 +56,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const reportOverlay = document.getElementById('report-overlay');
     const reportBody = document.getElementById('report-body');
     const flowContainer = document.getElementById('flow-container');
+    const saveBtn = document.getElementById('save-btn'); // New Save Button
 
-    if (appStatus) appStatus.textContent = "✅ 앱 버전 4.2 로드 완료 (실시간 받아쓰기 기능)";
+    if (appStatus) appStatus.textContent = "✅ 앱 버전 5.0 로드 완료 (간편 기록 모드)";
 
     let isAnalyzing = false;
     let recognition = null;
@@ -184,7 +182,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 conversationHistory = [];
                 try { 
                     recognition.start(); 
-                    updateUI('recording', '경청 중...', '맥락 분석을 시작합니다.');
+                    appStatus.innerHTML = "🎙️ <span class='pulse'>실시간 분석 중... 말씀해 주세요.</span>";
+                    ambientOverlay.style.background = `radial-gradient(circle at center, #ef4444, transparent 70%)`;
                 } catch (e) { 
                     console.error(e);
                     alert("⚠️ 마이크 실행 실패: 권한을 확인해주세요.");
@@ -204,25 +203,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ambientOverlay.style.background = `radial-gradient(circle at center, #6e45e2, transparent 70%)`;
         if (conversationHistory.length > 2 && GEMINI_API_KEY) {
             generateFinalReport();
-        }
-    }
-
-    function updateUI(themeKey, intentText, suggestionText) {
-        const ANALYSIS_THEMES = {
-            recording: { mood: "분석 활성화", color: "#ef4444" },
-            positive: { mood: "긍정적/우호적", color: "#10b981" },
-            negative: { mood: "부정적/긴장", color: "#f59e0b" },
-            neutral: { mood: "일상적 맥락", color: "#6e45e2" }
-        };
-        const theme = ANALYSIS_THEMES[themeKey] || ANALYSIS_THEMES.neutral;
-        moodStatus.textContent = theme.mood;
-        intentStatus.textContent = intentText;
-        actionSuggestion.textContent = suggestionText;
-        ambientOverlay.style.background = `radial-gradient(circle at center, ${theme.color}, transparent 70%)`;
-
-        // Hide full transcript from status bar if it's not a generic recording pulse
-        if (themeKey !== 'recording') {
-            appStatus.innerHTML = "✅ 분석 완료";
         }
     }
 
@@ -299,12 +279,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             appStatus.innerHTML = "🤖 <span class='pulse'>박사님이 집중 분석 중...</span>";
-            const context = conversationHistory.slice(-5).map(h => `${h.speaker}: ${h.text}`).join(' | ');
+            const context = conversationHistory.slice(-5).map(h => `${h.speakerTag}: ${h.text}`).join(' | ');
             const response = await callGemini(text, context);
             
             if (response) {
                 // Topic Change Detection
-                if (response.currentTopic && lastTopic && response.currentTopic !== lastTopic) {
+                if (response.isTopicChanged && response.currentTopic) {
                      addTopicDivider(response.currentTopic);
                 }
                 if (response.currentTopic) {
@@ -314,12 +294,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Save to history with speaker info
                 conversationHistory.push({
                     speaker: response.speaker || 'other',
+                    speakerTag: response.speakerTag || (response.speaker === 'me' ? '나' : '상대방'),
                     text: text,
-                    summary: response.summary || text
+                    summary: text // No summary needed in v5.0
                 });
-                if (conversationHistory.length > 50) conversationHistory.shift();
-
-                updateUI(response.mood, response.intent, response.suggestion);
+                if (conversationHistory.length > 100) conversationHistory.shift(); // Increased history size
                 
                 // 2. Update the pending bubble with real results
                 if (pendingBubble) {
@@ -357,43 +336,86 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function callGemini(text, context = "") {
-        const endpoints = [
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`
-        ];
-        const prompt = `당신은 실시간 대화 분석가입니다. 아래 대화를 분석하여 반드시 '한국어'로만 답변하세요.
-        당신은 오디오 분석 없이 오직 '텍스트'만으로 여러 명의 대화를 구분해야 합니다.
-        [최근 흐름]: ${context}
-        [현재 문장]: "${text}"
-        [현재 문장]: "${text}"
-        상대방의 'mood', 'intent', 'suggestion', 'speaker', 'speakerTag', 'speakerId', 'summary', 'currentTopic'을 JSON으로만 답변하세요.
-        - mood: 'positive', 'negative', 'neutral' 중 하나
-        - intent: 상대방의 숨은 의도나 상태 (한국어 1문장)
-        - suggestion: 내가 취할 수 있는 최선의 행동 (한국어 1문장)
-        - speaker: 'me' (나) 또는 'other' (다른 모든 사람)
-        - speakerTag: 이 문장을 말한 사람의 호칭. 문맥상 나이면 '나', 다른 사람이면 '참가자 1', '참가자 2' 등으로 구분하세요. 만약 누군가 이름을 부른다면 그 이름을 사용해도 좋습니다.
-        - speakerId: 화자별 고유 번호 (나=0, 참가자1=1, 참가자2=2...). 새로운 화자가 등장하면 다음 번호를 부여하세요.
-        - summary: 이 문장의 핵심 내용을 아주 짧게 요약 (한국어 1문장)
-        - currentTopic: 현재 대화의 핵심 주제 (예: '점심 메뉴 결정', '날씨 이야기'). 이전과 주제가 같으면 동일하게, 확실히 바뀌었으면 새로운 주제를 적으세요.
-        형식: {"mood": "...", "intent": "...", "suggestion": "...", "speaker": "...", "speakerTag": "...", "speakerId": 0, "summary": "...", "currentTopic": "..."}`;
+    async function callGemini(text, context) {
+        if (!GEMINI_API_KEY) return null;
 
-        for (const url of endpoints) {
-            try {
-                const response = await fetchWithTimeout(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                const data = await response.json();
-                if (data.candidates && data.candidates[0]) {
-                    const resText = data.candidates[0].content.parts[0].text;
-                    const match = resText.match(/\{[\s\S]*\}/);
-                    if (match) return JSON.parse(match[0].trim());
-                }
-            } catch (e) { }
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+        
+        // Simplified Prompt for v5.0
+        const prompt = `
+        You are a conversation logger and topic detector.
+        
+        Current context:
+        ${context}
+        
+        New input: "${text}"
+
+        Task:
+        1. Identify the speaker ("me" or "other"). If uncertain, infer from context.
+        2. Assign a Speaker ID (0 for me, 1-4 for others) for "other" speakers if disjoint.
+        3. Detect if the TOPIC has successfully changed.
+        4. Do NOT analyze mood, hidden intent, or suggestions. We only want to log the flow.
+        5. Just return the transcription confirmation and topic.
+
+        Output JSON:
+        {
+            "speaker": "me" or "other",
+            "speakerId": number (0 for me, 1-4 for others),
+            "speakerTag": "Display Name" (e.g. "나", "상대방", "동료"),
+            "currentTopic": "Short Topic Title" (null if same as before),
+            "isTopicChanged": boolean
         }
-        return null;
+        `;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }]
+                })
+            });
+
+            const data = await response.json();
+            const resultText = data.candidates[0].content.parts[0].text;
+            
+            // Clean JSON code blocks
+            const jsonStr = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(jsonStr);
+        } catch (error) {
+            console.error("Gemini API Error:", error);
+            return null;
+        }
+    }
+
+    // New Save Functionality
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveConversation);
+    }
+
+    function saveConversation() {
+        if (conversationHistory.length === 0) {
+            alert("저장할 대화 내용이 없습니다.");
+            return;
+        }
+
+        let content = "===== 대화 기록 로그 (비밀 파트너 v5.0) =====\n\n";
+        const now = new Date();
+        content += `저장 일시: ${now.toLocaleString()}\n\n`;
+
+        conversationHistory.forEach((item, index) => {
+             content += `[${item.speakerTag || item.speaker}] ${item.text}\n`;
+             if (item.summary && item.summary !== item.text) {
+                 // content += `   (요약: ${item.summary})\n`; 
+             }
+             content += "\n";
+        });
+
+        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `conversation_log_${now.getFullYear()}${now.getMonth()+1}${now.getDate()}_${now.getHours()}${now.getMinutes()}.txt`;
+        a.click();
     }
 
     async function generateFinalReport() {
