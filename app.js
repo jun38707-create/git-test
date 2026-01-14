@@ -74,6 +74,32 @@ document.addEventListener('DOMContentLoaded', () => {
     let conversationHistory = [];
     let lastTopic = ""; // Track the last topic
     let ghostBubble = null; // For interim results
+    
+    // v9.2 Smart TOC Variables
+    let startTime = null;
+    let tocLog = [];
+    
+    // Helper: Get MM:SS relative time
+    const getRelativeTime = () => {
+        if (!startTime) return "00:00";
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const min = String(Math.floor(elapsed / 60)).padStart(2, '0');
+        const sec = String(elapsed % 60).padStart(2, '0');
+        return `${min}:${sec}`;
+    };
+
+    // Helper: Add event to TOC Log
+    const logEvent = (type, content) => {
+        const time = getRelativeTime();
+        const icon = type === 'topic' ? '📌' : '✨';
+        const entry = `${time} | ${icon} ${type === 'topic' ? '주제' : '중요'}: ${content}`;
+        console.log(`[TOC] ${entry}`);
+        tocLog.push(entry);
+        
+        if (type === 'bookmark') {
+            showToast(`✨ 중요 지점 체크! (${time})`, 'success'); 
+        }
+    };
 
     if (GEMINI_API_KEY && apiKeyInput) {
         apiKeyInput.value = GEMINI_API_KEY;
@@ -209,9 +235,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
         recognition.onstart = async () => {
             isAnalyzing = true;
+            
+            // v9.2 Smart TOC Init
+            startTime = Date.now();
+            tocLog = [`00:00 | 🎬 녹음 시작`];
+
             analyzeBtn.classList.add('recording');
             analyzeBtn.innerHTML = '<span class="btn-icon">🛑</span> <span>추적 중지</span>';
             
+            // v9.2 Bookmark Button
+            let bookmarkBtn = document.getElementById('bookmark-btn');
+            if (!bookmarkBtn) {
+                bookmarkBtn = document.createElement('button');
+                bookmarkBtn.id = 'bookmark-btn';
+                bookmarkBtn.innerHTML = '✨ 중요';
+                bookmarkBtn.style.position = 'fixed';
+                bookmarkBtn.style.bottom = '110px'; 
+                bookmarkBtn.style.right = '24px';
+                bookmarkBtn.style.width = '64px';
+                bookmarkBtn.style.height = '64px';
+                bookmarkBtn.style.borderRadius = '50%';
+                bookmarkBtn.style.background = '#f59e0b'; // Amber
+                bookmarkBtn.style.border = 'none';
+                bookmarkBtn.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.4)';
+                bookmarkBtn.style.color = 'white';
+                bookmarkBtn.style.fontSize = '14px';
+                bookmarkBtn.style.fontWeight = 'bold';
+                bookmarkBtn.style.zIndex = '9999';
+                bookmarkBtn.style.cursor = 'pointer';
+                bookmarkBtn.style.transition = 'transform 0.2s';
+                
+                bookmarkBtn.onclick = () => {
+                    logEvent('bookmark', '사용자 중요 표시');
+                    bookmarkBtn.style.transform = 'scale(0.9)';
+                    setTimeout(() => bookmarkBtn.style.transform = 'scale(1)', 200);
+                };
+                
+                document.body.appendChild(bookmarkBtn);
+            }
+            bookmarkBtn.style.display = 'block';
+
             // Visual indicator
             ambientOverlay.style.background = `radial-gradient(circle at center, rgba(16, 185, 129, 0.2), transparent 70%)`; 
             analyzeBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
@@ -320,6 +383,32 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // v9.2 TOC Download Helper
+    function createTOCDownloadLink() {
+        if (tocLog.length === 0) return null;
+
+        const date = new Date();
+        const timestamp = `${date.getFullYear()}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}_${String(date.getHours()).padStart(2,'0')}${String(date.getMinutes()).padStart(2,'0')}`;
+        const filename = `대화목차_${timestamp}.txt`;
+
+        const content = tocLog.join('\n');
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.className = 'btn-secondary';
+        a.innerHTML = `<span>📜 목차 파일 저장 (.txt)</span>`;
+        a.style.textAlign = 'center';
+        a.style.textDecoration = 'none';
+        a.style.display = 'block';
+        a.style.background = '#f3f4f6';
+        a.style.color = '#333';
+        
+        return a;
+    }
+
     function createAudioDownloadLink(blob, ext) {
         if (!flowContainer) return;
         
@@ -405,11 +494,19 @@ document.addEventListener('DOMContentLoaded', () => {
         a.style.textDecoration = 'none';
         a.style.display = 'block';
 
+        // 3. TOC Download Button (v9.2 New)
+        const tocBtn = createTOCDownloadLink();
+
         container.appendChild(msg);
-        container.appendChild(analyzeBtn); // Restored
+        container.appendChild(analyzeBtn); 
         container.appendChild(a);
+        if (tocBtn) container.appendChild(tocBtn);
         
-        flowContainer.appendChild(container);
+        flowContainer.appendChild(container); // Ensure this line matches context
+
+        // Hide Bookmark Button
+        const bookmarkBtn = document.getElementById('bookmark-btn');
+        if (bookmarkBtn) bookmarkBtn.style.display = 'none';
         flowContainer.scrollTop = flowContainer.scrollHeight;
 
         // v8.1 Robust Auto-Download
@@ -509,6 +606,8 @@ document.addEventListener('DOMContentLoaded', () => {
             pocketBtn.style.display = 'none';
             if (pocketOverlay) pocketOverlay.style.display = 'none';
         }
+        const bookmarkBtn = document.getElementById('bookmark-btn');
+        if (bookmarkBtn) bookmarkBtn.style.display = 'none';
         
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
 
@@ -612,6 +711,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function addTopicDivider(topicText) {
         if (!flowContainer) return;
+        
+        // v9.2 Smart TOC Log
+        logEvent('topic', topicText);
 
         const divider = document.createElement('div');
         divider.className = 'topic-divider';
